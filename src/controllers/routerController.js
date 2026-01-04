@@ -1,56 +1,32 @@
-const {
-    getUserByPhone,
-    createUser,
-    updateUser
-} = require("../services/userService");
-
-/**
- * Main message router
- * @param {string} from - phone number
- * @param {string} message - incoming message
- */
-async function routeMessage(from, message) {
-    try {
-        // =========================
-        // HARD VALIDATION
-        // =========================
-        if (!from || !message) {
-            return "Invalid message received. Please try again.";
+if (user.stage === "active") {
+    // Request voucher
+    if (text === "1" || text.includes("voucher")) {
+        if (user.hasActiveVoucher) {
+            return "You already have an active voucher. Please repay it before requesting another.";
         }
 
-        const text = message.trim().toLowerCase();
+        const amount = 1000; // test amount; configurable later
 
-        // =========================
-        // FETCH OR CREATE USER
-        // =========================
-        let user = await getUserByPhone(from);
+        await updateUser(from, {
+            hasActiveVoucher: true,
+            voucherAmount: amount,
+            voucherRequestedAt: new Date()
+        });
 
-        if (!user) {
-            await createUser(from);
-            return "Welcome to Paylite 👋\nReply YES to begin.";
+        return `Your voucher request has been approved ✅\nAmount: ₦${amount}\nWe’ll send next steps shortly.`;
+    }
+
+    // Repay
+    if (text === "2" || text.includes("repay")) {
+        if (!user.hasActiveVoucher) {
+            return "You don’t have an active voucher to repay.";
         }
+        return `Your current voucher is ₦${user.voucherAmount}. Repayment options will be sent shortly.`;
+    }
 
-        // =========================
-        // BLOCKED USER
-        // =========================
-        if (user.stage === "blocked") {
-            return "Your account is currently restricted. Please contact support.";
-        }
-
-        // =========================
-        // ONBOARDING FLOW
-        // =========================
-        if (user.stage === "onboarding") {
-
-            // Step 1: Ask to begin
-            if (!user.fullName) {
-                if (text === "yes") {
-                    return "Great 👍 What is your full name?";
-                }
-
-                return "Welcome to Paylite 👋\nReply YES to begin.";
-            }
-
-            // Step 2: Collect full name
-            if (!user.activatedAt) {
-                if (text
+    return (
+        "How can I help you today?\n" +
+        "1. Request voucher\n" +
+        "2. Repay loan"
+    );
+}
