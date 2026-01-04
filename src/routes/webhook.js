@@ -4,8 +4,7 @@ const { routeMessage } = require("../controllers/routerController");
 
 router.post("/", async (req, res) => {
     try {
-        const from = req.body.from;
-        const message = req.body.message;
+        const { from, message } = req.body;
 
         const reply = await routeMessage(from, message);
 
@@ -13,8 +12,9 @@ router.post("/", async (req, res) => {
             success: true,
             reply
         });
-    } catch (err) {
-        console.error("Webhook error:", err);
+    } catch (error) {
+        console.error("Webhook error:", error);
+
         return res.status(500).json({
             success: false,
             error: "Internal server error"
