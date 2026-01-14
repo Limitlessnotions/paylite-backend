@@ -14,79 +14,137 @@ async function routeMessage(from, message) {
         // =========================
         if (!user) {
             if (text === "yes") {
-                return "Great 👍 What is your full name?";
+                return (
+                    "Welcome to Paylite 👋\n\n" +
+                    "Before we continue, please review and accept our Terms & Conditions.\n" +
+                    "Reply ACCEPT to proceed."
+                );
             }
             return "Welcome to Paylite 👋\nReply YES to begin.";
         }
 
         // =========================
-        // USER WITHOUT STAGE
+        // TERMS ACCEPTANCE
         // =========================
-        if (!user.stage) {
-            return "Let’s continue your setup. What is your full name?";
-        }
-
-        // =========================
-        // ACTIVE USER
-        // =========================
-        if (user.stage === "active") {
-
-            // REQUEST VOUCHER
-            if (text === "1" || text.includes("voucher")) {
-                if (user.hasActiveVoucher) {
-                    return "You already have an active voucher. Please repay it before requesting another.";
-                }
-
-                const amount = 1000; // configurable later
-
+        if (!user.termsAccepted) {
+            if (text === "accept") {
                 await updateUser(from, {
-                    hasActiveVoucher: true,
-                    voucherAmount: amount,
-                    voucherRequestedAt: new Date()
+                    termsAccepted: true,
+                    termsAcceptedAt: new Date(),
+                    termsVersion: "v1.0",
+                    updatedAt: new Date()
                 });
 
-                return `Your voucher request has been approved ✅\nAmount: ₦${amount}\nRepayment details will be sent shortly.`;
-            }
-
-            // REPAYMENT FLOW
-            if (text === "2" || text.includes("repay")) {
-                if (!user.hasActiveVoucher) {
-                    return "You don’t have an active voucher to repay.";
-                }
-
                 return (
-                    `Your outstanding voucher is ₦${user.voucherAmount}.\n` +
-                    `Reply PAID once repayment is completed.`
+                    "Thank you ✅\n\n" +
+                    "Please choose your voucher amount:\n" +
+                    "1️⃣ R100\n" +
+                    "2️⃣ R200"
                 );
             }
 
-            // CONFIRM REPAYMENT
-            if (text === "paid" || text === "confirm" || text === "done") {
-                if (!user.hasActiveVoucher) {
-                    return "No active voucher found.";
-                }
+            return "Please reply ACCEPT to continue.";
+        }
 
+        // =========================
+        // VOUCHER AMOUNT SELECTION
+        // =========================
+        if (!user.voucherAmount) {
+            if (text === "1") {
                 await updateUser(from, {
-                    hasActiveVoucher: false,
-                    voucherAmount: null,
-                    voucherRequestedAt: null,
-                    lastRepaidAt: new Date()
+                    voucherAmount: 100,
+                    voucherFee: 65,
+                    voucherTotalRepayment: 165,
+                    updatedAt: new Date()
                 });
-
-                return "Payment confirmed ✅\nYou can now request a new voucher.";
+            } else if (text === "2") {
+                await updateUser(from, {
+                    voucherAmount: 200,
+                    voucherFee: 65,
+                    voucherTotalRepayment: 265,
+                    updatedAt: new Date()
+                });
+            } else {
+                return "Please choose a valid option:\n1️⃣ R100\n2️⃣ R200";
             }
 
             return (
-                "How can I help you today?\n" +
-                "1. Request voucher\n" +
-                "2. Repay loan"
+                "Choose a repayment option:\n" +
+                "1️⃣ Pay in 30 days\n" +
+                "2️⃣ Pay weekly (4 installments)"
             );
         }
 
-        return "Something went wrong. Please try again.";
+        // =========================
+        // REPAYMENT OPTION
+        // =========================
+        if (!user.repaymentOption) {
+            if (text === "1") {
+                await updateUser(from, {
+                    repaymentOption: "single_30_days",
+                    updatedAt: new Date()
+                });
+            } else if (text === "2") {
+                await updateUser(from, {
+                    repaymentOption: "weekly_4",
+                    updatedAt: new Date()
+                });
+            } else {
+                return "Please select:\n1️⃣ 30 days\n2️⃣ Weekly";
+            }
 
-    } catch (err) {
-        console.error("routeMessage error:", err);
+            return "Reply REQUEST to submit your voucher for approval.";
+        }
+
+        // =========================
+        // SUBMIT VOUCHER REQUEST
+        // =========================
+        if (text === "request") {
+            if (user.voucherStatus === "pending") {
+                return "Your voucher request is already under review ⏳";
+            }
+
+            await updateUser(from, {
+                voucherStatus: "pending",
+                voucherRequestedAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            return (
+                "Your voucher request has been submitted ✅\n" +
+                "It is currently under review.\n" +
+                "You will be notified once approved."
+            );
+        }
+
+        // =========================
+        // ACTIVE VOUCHER
+        // =========================
+        if (user.voucherStatus === "approved" && user.hasActiveVoucher) {
+            if (text === "paid") {
+                await updateUser(from, {
+                    hasActiveVoucher: false,
+                    voucherStatus: "none",
+                    voucherAmount: null,
+                    voucherFee: null,
+                    voucherTotalRepayment: null,
+                    repaymentOption: null,
+                    updatedAt: new Date()
+                });
+
+                return "Payment confirmed ✅\nYou can now request another voucher.";
+            }
+
+            return (
+                `Outstanding balance: R${user.voucherTotalRepayment}\n` +
+                "Reply PAID once payment is completed."
+            );
+        }
+
+        return "Please follow the prompts to continue.";
+
+    } catch (error) {
+        console.error("routeMessage error:", error);
         return "A system error occurred. Please try again later.";
     }
 }
