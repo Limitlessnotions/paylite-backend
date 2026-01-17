@@ -14,47 +14,38 @@ async function routeMessage(from, message) {
     let user = await getUserByPhone(from);
 
     // =========================
-    // CREATE USER (FIRST CONTACT)
+    // CREATE USER
     // =========================
     if (!user) {
-      user = await createUser(from);
-
-      return (
-        "Welcome to Paylite 👋\n\n" +
-        "Reply YES to begin."
-      );
+      await createUser({ phone: from, stage: "new" });
+      return "Welcome to Paylite 👋\nReply YES to begin.";
     }
 
     // =========================
-    // START FLOW
+    // BLOCKED USER
     // =========================
-    if (text === "yes" && !user.termsAccepted) {
-      return (
-        "Before we continue, please review and accept our Terms & Conditions.\n\n" +
-        "Reply ACCEPT to proceed."
-      );
+    if (user.isBlocked) {
+      return "Your account is restricted. Please contact support.";
     }
 
     // =========================
-    // TERMS ACCEPTANCE
+    // START
     // =========================
     if (!user.termsAccepted) {
+      if (text === "yes") {
+        return "Please review our Terms & Conditions.\nReply ACCEPT to continue.";
+      }
+
       if (text === "accept") {
         await updateUser(from, {
           termsAccepted: true,
-          termsAcceptedAt: new Date(),
           stage: "onboarding"
         });
 
-        return (
-          "Thank you ✅\n\n" +
-          "Please choose your voucher amount:\n" +
-          "1️⃣ R100\n" +
-          "2️⃣ R200"
-        );
+        return "Choose voucher amount:\n1️⃣ R100\n2️⃣ R200";
       }
 
-      return "Please reply ACCEPT to continue.";
+      return "Reply YES to begin.";
     }
 
     // =========================
@@ -74,14 +65,10 @@ async function routeMessage(from, message) {
           voucherTotalRepayment: 265
         });
       } else {
-        return "Please choose:\n1️⃣ R100\n2️⃣ R200";
+        return "Choose:\n1️⃣ R100\n2️⃣ R200";
       }
 
-      return (
-        "Choose a repayment option:\n" +
-        "1️⃣ Pay in 30 days\n" +
-        "2️⃣ Pay weekly (4 installments)"
-      );
+      return "Choose repayment option:\n1️⃣ 30 days\n2️⃣ Weekly";
     }
 
     // =========================
@@ -93,83 +80,49 @@ async function routeMessage(from, message) {
       } else if (text === "2") {
         await updateUser(from, { repaymentOption: "weekly_4" });
       } else {
-        return "Please select:\n1️⃣ 30 days\n2️⃣ Weekly";
+        return "Select:\n1️⃣ 30 days\n2️⃣ Weekly";
       }
 
-      return "Reply REQUEST to submit your voucher for approval.";
+      return "Reply REQUEST to submit voucher.";
     }
 
     // =========================
-    // SUBMIT FOR APPROVAL
+    // SUBMIT REQUEST
     // =========================
     if (text === "request") {
-      if (user.voucherStatus === "pending") {
-        return "Your voucher request is already under review ⏳";
-      }
-
       await updateUser(from, {
         voucherStatus: "pending",
-        voucherRequestedAt: new Date(),
         stage: "active"
       });
 
-      return (
-        "Your voucher request has been submitted ✅\n" +
-        "You will be notified once approved."
-      );
+      return "Your request is under review ⏳";
     }
 
     // =========================
-    // ACTIVE VOUCHER
+    // COLLECT METER NUMBER (FIXED)
     // =========================
-    if (user.voucherStatus === "approved" && user.hasActiveVoucher) {
-      if (text === "paid") {
-        await updateUser(from, {
-          hasActiveVoucher: false,
-          voucherStatus: null,
-          voucherAmount: null,
-          voucherFee: null,
-          voucherTotalRepayment: null,
-          voucherRequestedAt: null,
-          repaymentOption: null
-        });
-
-        return "Payment confirmed ✅\nYou can now request another voucher.";
+    if (user.voucherStatus === "approved" && !user.meterNumber) {
+      if (!/^\d{6,20}$/.test(text)) {
+        return "Please enter a valid electricity meter number.";
       }
 
+      await updateUser(from, {
+        meterNumber: text,
+        fulfillmentStatus: "pending"
+      });
+
       return (
-        `Outstanding balance: R${user.voucherTotalRepayment}\n` +
-        "Reply PAID once payment is completed."
+        "Meter number received ✅\n" +
+        "Electricity will be processed shortly."
       );
     }
 
-    return "Please follow the prompts to continue.";
+    return "Please follow the prompts.";
 
   } catch (error) {
     console.error("routeMessage error:", error);
-    return "A system error occurred. Please try again later.";
+    return "System error. Please try again later.";
   }
 }
 
 module.exports = { routeMessage };
-
-// =========================
-// COLLECT METER NUMBER
-// =========================
-if (user.voucherStatus === "approved" && !user.meterNumber) {
-  if (!/^\d{6,20}$/.test(text)) {
-    return "Please enter a valid electricity meter number.";
-  }
-
-  await updateUser(from, {
-    meterNumber: text,
-    fulfillmentStatus: "pending"
-  });
-
-  return (
-    "Thank you ✅\n" +
-    "Your meter number has been received.\n" +
-    "Electricity will be processed shortly."
-  );
-}
-
