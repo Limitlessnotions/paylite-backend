@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const adminAuth = require("../middleware/adminAuth");
+
 const {
   getPendingVouchers,
   approveVoucher,
@@ -9,6 +11,9 @@ const {
   unblockUser,
   fulfillVoucher
 } = require("../controllers/adminController");
+
+// 🔐 PROTECT ALL ROUTES
+router.use(adminAuth);
 
 router.get("/pending-vouchers", getPendingVouchers);
 router.post("/approve-voucher", approveVoucher);
