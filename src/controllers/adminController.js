@@ -1,6 +1,7 @@
 const { getUserByPhone, updateUser } = require("../services/userService");
 const { logAudit } = require("../services/auditService");
 const { sendWhatsAppMessage } = require("../services/whatsapp.service");
+const { fulfillElectricity } = require("../services/fulfillmentService");
 
 // ==========================
 // APPROVE VOUCHER
@@ -8,50 +9,33 @@ const { sendWhatsAppMessage } = require("../services/whatsapp.service");
 async function approveVoucher(req, res) {
   try {
     const { phone, approvedBy = "Compliance Officer" } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone is required" });
-    }
-
     const user = await getUserByPhone(phone);
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
 
-    if (user.voucherStatus !== "pending") {
-      return res.status(400).json({
-        success: false,
-        error: "Voucher is not pending approval"
-      });
+    if (!user || user.voucherStatus !== "pending") {
+      return res.status(400).json({ success: false });
     }
 
     await updateUser(phone, {
       voucherStatus: "approved",
-      hasActiveVoucher: true,
-      voucherApprovedAt: new Date(),
-      approvedBy
+      hasActiveVoucher: true
     });
 
     await logAudit({
       action: "APPROVE_VOUCHER",
       phone,
-      performedBy: approvedBy,
-      metadata: {
-        voucherAmount: user.voucherAmount,
-        repaymentOption: user.repaymentOption
-      }
+      performedBy: approvedBy
     });
 
     await sendWhatsAppMessage(
       phone,
-      `✅ Your Paylite voucher has been approved!\n\nAmount: R${user.voucherAmount}\n\nYou’ll receive next steps shortly.`
+      "✅ Your Paylite voucher has been approved.\nPlease enter your meter number."
     );
 
-    return res.json({ success: true, message: "Voucher approved successfully" });
+    res.json({ success: true });
 
-  } catch (error) {
-    console.error("approveVoucher error:", error);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false });
   }
 }
 
@@ -60,23 +44,7 @@ async function approveVoucher(req, res) {
 // ==========================
 async function rejectVoucher(req, res) {
   try {
-    const { phone, reason = "Rejected by admin" } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone is required" });
-    }
-
-    const user = await getUserByPhone(phone);
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    if (user.voucherStatus !== "pending") {
-      return res.status(400).json({
-        success: false,
-        error: "Voucher is not pending approval"
-      });
-    }
+    const { phone, reason } = req.body;
 
     await updateUser(phone, {
       voucherStatus: "rejected",
@@ -86,109 +54,75 @@ async function rejectVoucher(req, res) {
     await logAudit({
       action: "REJECT_VOUCHER",
       phone,
-      performedBy: "Compliance Officer",
-      reason
-    });
-
-    await sendWhatsAppMessage(
-      phone,
-      `❌ Your Paylite voucher request was not approved.\n\nReason: ${reason}\n\nYou may try again later.`
-    );
-
-    return res.json({ success: true, message: "Voucher rejected successfully" });
-
-  } catch (error) {
-    console.error("rejectVoucher error:", error);
-    return res.status(500).json({ success: false, error: "Internal server error" });
-  }
-}
-
-// ==========================
-// BLOCK USER
-// ==========================
-async function blockUser(req, res) {
-  try {
-    const { phone, reason = "Blocked by admin" } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone is required" });
-    }
-
-    const user = await getUserByPhone(phone);
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    await updateUser(phone, {
-      isBlocked: true,
-      blockedAt: new Date(),
-      blockedReason: reason
-    });
-
-    await logAudit({
-      action: "BLOCK_USER",
-      phone,
       performedBy: "Admin",
       reason
     });
 
     await sendWhatsAppMessage(
       phone,
-      "⚠️ Your Paylite account has been temporarily restricted. Please contact support."
+      `❌ Voucher rejected.\nReason: ${reason}`
     );
 
-    return res.json({ success: true, message: "User blocked successfully" });
+    res.json({ success: true });
 
-  } catch (error) {
-    console.error("blockUser error:", error);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+  } catch (e) {
+    res.status(500).json({ success: false });
   }
 }
 
 // ==========================
-// UNBLOCK USER
+// FULFILL VOUCHER
 // ==========================
-async function unblockUser(req, res) {
+async function fulfillVoucher(req, res) {
   try {
     const { phone } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone is required" });
-    }
-
     const user = await getUserByPhone(phone);
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
+
+    if (!user || user.fulfillmentStatus !== "pending") {
+      return res.status(400).json({ success: false });
     }
 
-    await updateUser(phone, {
-      isBlocked: false,
-      blockedAt: null,
-      blockedReason: null
+    const result = await fulfillElectricity({
+      meterNumber: user.meterNumber,
+      amount: user.voucherAmount,
+      reference: phone
     });
 
-    await logAudit({
-      action: "UNBLOCK_USER",
-      phone,
-      performedBy: "Admin"
+    await updateUser(phone, {
+      fulfillmentStatus: "completed",
+      electricityToken: result.token
     });
 
     await sendWhatsAppMessage(
       phone,
-      "✅ Your Paylite account has been reactivated. You may continue."
+      `⚡ Electricity loaded successfully.\nToken:\n${result.token}`
     );
 
-    return res.json({ success: true, message: "User unblocked successfully" });
+    res.json({ success: true });
 
-  } catch (error) {
-    console.error("unblockUser error:", error);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false });
   }
+}
+
+// ==========================
+// BLOCK / UNBLOCK
+// ==========================
+async function blockUser(req, res) {
+  await updateUser(req.body.phone, { isBlocked: true });
+  res.json({ success: true });
+}
+
+async function unblockUser(req, res) {
+  await updateUser(req.body.phone, { isBlocked: false });
+  res.json({ success: true });
 }
 
 module.exports = {
   approveVoucher,
   rejectVoucher,
+  fulfillVoucher,
   blockUser,
   unblockUser
 };
