@@ -152,3 +152,24 @@ async function routeMessage(from, message) {
 }
 
 module.exports = { routeMessage };
+
+// =========================
+// COLLECT METER NUMBER
+// =========================
+if (user.voucherStatus === "approved" && !user.meterNumber) {
+  if (!/^\d{6,20}$/.test(text)) {
+    return "Please enter a valid electricity meter number.";
+  }
+
+  await updateUser(from, {
+    meterNumber: text,
+    fulfillmentStatus: "pending"
+  });
+
+  return (
+    "Thank you ✅\n" +
+    "Your meter number has been received.\n" +
+    "Electricity will be processed shortly."
+  );
+}
+
