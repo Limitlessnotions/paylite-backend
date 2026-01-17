@@ -1,4 +1,5 @@
 const { getUserByPhone, updateUser } = require("../services/userService");
+const { logAudit } = require("../services/auditService");
 
 // ==========================
 // APPROVE VOUCHER
@@ -35,6 +36,16 @@ async function approveVoucher(req, res) {
       hasActiveVoucher: true,
       voucherApprovedAt: new Date(),
       approvedBy
+    });
+
+    await logAudit({
+      action: "APPROVE_VOUCHER",
+      phone,
+      performedBy: approvedBy,
+      metadata: {
+        voucherAmount: user.voucherAmount,
+        repaymentOption: user.repaymentOption
+      }
     });
 
     return res.json({
@@ -86,6 +97,13 @@ async function rejectVoucher(req, res) {
       rejectionReason: reason
     });
 
+    await logAudit({
+      action: "REJECT_VOUCHER",
+      phone,
+      performedBy: "Compliance Officer",
+      reason
+    });
+
     return res.json({
       success: true,
       message: "Voucher rejected successfully"
@@ -129,6 +147,13 @@ async function blockUser(req, res) {
       blockedReason: reason
     });
 
+    await logAudit({
+      action: "BLOCK_USER",
+      phone,
+      performedBy: "Admin",
+      reason
+    });
+
     return res.json({
       success: true,
       message: "User blocked successfully"
@@ -170,6 +195,12 @@ async function unblockUser(req, res) {
       isBlocked: false,
       blockedAt: null,
       blockedReason: null
+    });
+
+    await logAudit({
+      action: "UNBLOCK_USER",
+      phone,
+      performedBy: "Admin"
     });
 
     return res.json({
