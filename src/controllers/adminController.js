@@ -2,13 +2,44 @@ const { getUserByPhone, updateUser } = require("../services/userService");
 const { logAudit } = require("../services/auditService");
 const { sendWhatsAppMessage } = require("../services/whatsapp.service");
 const { fulfillElectricity } = require("../services/fulfillmentService");
+const { db } = require("../services/firebase");
+
+// ==========================
+// GET PENDING VOUCHERS
+// ==========================
+async function getPendingVouchers(req, res) {
+  try {
+    const snapshot = await db
+      .collection("users")
+      .where("voucherStatus", "==", "pending")
+      .get();
+
+    const data = [];
+
+    snapshot.forEach(doc => {
+      const u = doc.data();
+      data.push({
+        phone: doc.id,
+        voucherAmount: u.voucherAmount,
+        repaymentOption: u.repaymentOption,
+        requestedAt: u.voucherRequestedAt || null
+      });
+    });
+
+    return res.json({ success: true, data });
+
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ success: false });
+  }
+}
 
 // ==========================
 // APPROVE VOUCHER
 // ==========================
 async function approveVoucher(req, res) {
   try {
-    const { phone, approvedBy = "Compliance Officer" } = req.body;
+    const { phone } = req.body;
     const user = await getUserByPhone(phone);
 
     if (!user || user.voucherStatus !== "pending") {
@@ -23,12 +54,12 @@ async function approveVoucher(req, res) {
     await logAudit({
       action: "APPROVE_VOUCHER",
       phone,
-      performedBy: approvedBy
+      performedBy: "Admin"
     });
 
     await sendWhatsAppMessage(
       phone,
-      "✅ Your Paylite voucher has been approved.\nPlease enter your meter number."
+      "✅ Your Paylite voucher has been approved. Please reply with your meter number."
     );
 
     res.json({ success: true });
@@ -48,7 +79,7 @@ async function rejectVoucher(req, res) {
 
     await updateUser(phone, {
       voucherStatus: "rejected",
-      rejectionReason: reason
+      rejectionReason: reason || "Rejected"
     });
 
     await logAudit({
@@ -60,7 +91,7 @@ async function rejectVoucher(req, res) {
 
     await sendWhatsAppMessage(
       phone,
-      `❌ Voucher rejected.\nReason: ${reason}`
+      `❌ Your Paylite voucher request was rejected.\nReason: ${reason}`
     );
 
     res.json({ success: true });
@@ -71,7 +102,20 @@ async function rejectVoucher(req, res) {
 }
 
 // ==========================
-// FULFILL VOUCHER
+// BLOCK / UNBLOCK
+// ==========================
+async function blockUser(req, res) {
+  await updateUser(req.body.phone, { isBlocked: true });
+  res.json({ success: true });
+}
+
+async function unblockUser(req, res) {
+  await updateUser(req.body.phone, { isBlocked: false });
+  res.json({ success: true });
+}
+
+// ==========================
+// FULFILL ELECTRICITY
 // ==========================
 async function fulfillVoucher(req, res) {
   try {
@@ -101,28 +145,15 @@ async function fulfillVoucher(req, res) {
     res.json({ success: true });
 
   } catch (e) {
-    console.error(e);
     res.status(500).json({ success: false });
   }
 }
 
-// ==========================
-// BLOCK / UNBLOCK
-// ==========================
-async function blockUser(req, res) {
-  await updateUser(req.body.phone, { isBlocked: true });
-  res.json({ success: true });
-}
-
-async function unblockUser(req, res) {
-  await updateUser(req.body.phone, { isBlocked: false });
-  res.json({ success: true });
-}
-
 module.exports = {
+  getPendingVouchers,
   approveVoucher,
   rejectVoucher,
-  fulfillVoucher,
   blockUser,
-  unblockUser
+  unblockUser,
+  fulfillVoucher
 };
