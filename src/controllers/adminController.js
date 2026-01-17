@@ -8,13 +8,19 @@ async function approveVoucher(req, res) {
     const { phone, approvedBy = "Compliance Officer" } = req.body;
 
     if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone is required" });
+      return res.status(400).json({
+        success: false,
+        error: "Phone is required"
+      });
     }
 
     const user = await getUserByPhone(phone);
 
     if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      return res.status(404).json({
+        success: false,
+        error: "User not found"
+      });
     }
 
     if (user.voucherStatus !== "pending") {
@@ -38,7 +44,10 @@ async function approveVoucher(req, res) {
 
   } catch (error) {
     console.error("approveVoucher error:", error);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
   }
 }
 
@@ -47,16 +56,22 @@ async function approveVoucher(req, res) {
 // ==========================
 async function rejectVoucher(req, res) {
   try {
-    const { phone, reason = "Not specified" } = req.body;
+    const { phone, reason = "Rejected by admin" } = req.body;
 
     if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone is required" });
+      return res.status(400).json({
+        success: false,
+        error: "Phone is required"
+      });
     }
 
     const user = await getUserByPhone(phone);
 
     if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      return res.status(404).json({
+        success: false,
+        error: "User not found"
+      });
     }
 
     if (user.voucherStatus !== "pending") {
@@ -73,16 +88,107 @@ async function rejectVoucher(req, res) {
 
     return res.json({
       success: true,
-      message: "Voucher rejected"
+      message: "Voucher rejected successfully"
     });
 
   } catch (error) {
     console.error("rejectVoucher error:", error);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
+  }
+}
+
+// ==========================
+// BLOCK USER
+// ==========================
+async function blockUser(req, res) {
+  try {
+    const { phone, reason = "Blocked by admin" } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone is required"
+      });
+    }
+
+    const user = await getUserByPhone(phone);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found"
+      });
+    }
+
+    await updateUser(phone, {
+      isBlocked: true,
+      blockedAt: new Date(),
+      blockedReason: reason
+    });
+
+    return res.json({
+      success: true,
+      message: "User blocked successfully"
+    });
+
+  } catch (error) {
+    console.error("blockUser error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
+  }
+}
+
+// ==========================
+// UNBLOCK USER
+// ==========================
+async function unblockUser(req, res) {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone is required"
+      });
+    }
+
+    const user = await getUserByPhone(phone);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found"
+      });
+    }
+
+    await updateUser(phone, {
+      isBlocked: false,
+      blockedAt: null,
+      blockedReason: null
+    });
+
+    return res.json({
+      success: true,
+      message: "User unblocked successfully"
+    });
+
+  } catch (error) {
+    console.error("unblockUser error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
   }
 }
 
 module.exports = {
   approveVoucher,
-  rejectVoucher
+  rejectVoucher,
+  blockUser,
+  unblockUser
 };
