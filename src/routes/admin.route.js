@@ -1,13 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const adminController = require("../controllers/adminController");
+const { approveVoucher, rejectVoucher } = require("../controllers/adminController");
 
-// HTML dashboard
-router.get("/", adminController.getDashboard);
+// Approve voucher
+router.post("/approve-voucher", approveVoucher);
 
-// JSON APIs
-router.get("/api/users", adminController.getUsers);
-router.get("/api/vouchers", adminController.getVouchers);
-router.get("/api/repayments", adminController.getRepayments);
+// Reject voucher
+router.post("/reject-voucher", rejectVoucher);
 
 module.exports = router;
