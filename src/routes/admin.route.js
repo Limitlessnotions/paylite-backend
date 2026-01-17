@@ -8,10 +8,11 @@ const {
   unblockUser
 } = require("../controllers/adminController");
 
+// Voucher approval
 router.post("/approve-voucher", approveVoucher);
 router.post("/reject-voucher", rejectVoucher);
 
-// NEW
+// User control
 router.post("/block-user", blockUser);
 router.post("/unblock-user", unblockUser);
 
