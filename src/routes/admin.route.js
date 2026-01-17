@@ -1,11 +1,18 @@
 const express = require("express");
 const router = express.Router();
-const { approveVoucher, rejectVoucher } = require("../controllers/adminController");
 
-// Approve voucher
+const {
+  approveVoucher,
+  rejectVoucher,
+  blockUser,
+  unblockUser
+} = require("../controllers/adminController");
+
 router.post("/approve-voucher", approveVoucher);
-
-// Reject voucher
 router.post("/reject-voucher", rejectVoucher);
+
+// NEW
+router.post("/block-user", blockUser);
+router.post("/unblock-user", unblockUser);
 
 module.exports = router;
