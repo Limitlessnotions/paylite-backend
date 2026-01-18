@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Paylite Admin – Voucher Approvals</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="container">
+    <h1>Paylite Admin</h1>
+
+    <div id="auth">
+      <input
+        type="password"
+        id="tokenInput"
+        placeholder="Enter admin token"
+      />
+      <button onclick="saveToken()">Access Admin</button>
+    </div>
+
+    <div id="content" class="hidden">
+      <h2>Pending Vouchers</h2>
+      <div id="voucherList"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
