@@ -22,12 +22,12 @@ async function getPendingVouchers(req, res) {
         phone: doc.id,
         voucherAmount: u.voucherAmount,
         repaymentOption: u.repaymentOption,
-        requestedAt: u.voucherRequestedAt || null
+        voucherStatus: u.voucherStatus,
+        voucherRequestedAt: u.voucherRequestedAt || null
       });
     });
 
     return res.json({ success: true, data });
-
   } catch (e) {
     console.error(e);
     return res.status(500).json({ success: false });
@@ -54,7 +54,7 @@ async function approveVoucher(req, res) {
     await logAudit({
       action: "APPROVE_VOUCHER",
       phone,
-      performedBy: "Admin"
+      timestamp: new Date()
     });
 
     await sendWhatsAppMessage(
@@ -63,7 +63,6 @@ async function approveVoucher(req, res) {
     );
 
     res.json({ success: true });
-
   } catch (e) {
     console.error(e);
     res.status(500).json({ success: false });
@@ -85,8 +84,8 @@ async function rejectVoucher(req, res) {
     await logAudit({
       action: "REJECT_VOUCHER",
       phone,
-      performedBy: "Admin",
-      reason
+      reason,
+      timestamp: new Date()
     });
 
     await sendWhatsAppMessage(
@@ -95,22 +94,35 @@ async function rejectVoucher(req, res) {
     );
 
     res.json({ success: true });
-
   } catch (e) {
     res.status(500).json({ success: false });
   }
 }
 
 // ==========================
-// BLOCK / UNBLOCK
+// BLOCK / UNBLOCK USER
 // ==========================
 async function blockUser(req, res) {
   await updateUser(req.body.phone, { isBlocked: true });
+
+  await logAudit({
+    action: "BLOCK_USER",
+    phone: req.body.phone,
+    timestamp: new Date()
+  });
+
   res.json({ success: true });
 }
 
 async function unblockUser(req, res) {
   await updateUser(req.body.phone, { isBlocked: false });
+
+  await logAudit({
+    action: "UNBLOCK_USER",
+    phone: req.body.phone,
+    timestamp: new Date()
+  });
+
   res.json({ success: true });
 }
 
@@ -137,14 +149,40 @@ async function fulfillVoucher(req, res) {
       electricityToken: result.token
     });
 
+    await logAudit({
+      action: "FULFILL_VOUCHER",
+      phone,
+      timestamp: new Date()
+    });
+
     await sendWhatsAppMessage(
       phone,
       `⚡ Electricity loaded successfully.\nToken:\n${result.token}`
     );
 
     res.json({ success: true });
-
   } catch (e) {
+    res.status(500).json({ success: false });
+  }
+}
+
+// ==========================
+// GET AUDIT LOGS
+// ==========================
+async function getAuditLogs(req, res) {
+  try {
+    const snapshot = await db
+      .collection("audit_logs")
+      .orderBy("timestamp", "desc")
+      .limit(50)
+      .get();
+
+    const logs = [];
+    snapshot.forEach(doc => logs.push(doc.data()));
+
+    res.json({ success: true, data: logs });
+  } catch (e) {
+    console.error("getAuditLogs error:", e);
     res.status(500).json({ success: false });
   }
 }
@@ -155,5 +193,6 @@ module.exports = {
   rejectVoucher,
   blockUser,
   unblockUser,
-  fulfillVoucher
+  fulfillVoucher,
+  getAuditLogs
 };
