@@ -2,29 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Paylite Admin – Voucher Approvals</title>
+  <title>Paylite Admin</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <div class="container">
-    <h1>Paylite Admin</h1>
+<div class="container">
 
-    <div id="auth">
-      <input
-        type="password"
-        id="tokenInput"
-        placeholder="Enter admin token"
-      />
-      <button onclick="saveToken()">Access Admin</button>
-    </div>
+  <h1>Paylite Admin Panel</h1>
 
-    <div id="content" class="hidden">
-      <h2>Pending Vouchers</h2>
-      <div id="voucherList"></div>
-    </div>
+  <!-- LOGIN -->
+  <div id="auth">
+    <input type="password" id="tokenInput" placeholder="Admin token" />
+    <button onclick="login()">Login</button>
   </div>
 
-  <script src="app.js"></script>
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="hidden">
+
+    <div class="top-bar">
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search phone number"
+        onkeyup="renderTable()"
+      />
+
+      <select id="statusFilter" onchange="renderTable()">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+
+      <button onclick="logout()">Logout</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Phone</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+
+    <h2>Audit Log</h2>
+    <div id="auditLog"></div>
+
+  </div>
+
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
