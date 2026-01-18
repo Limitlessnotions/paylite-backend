@@ -1,6 +1,5 @@
 const { db } = require("../services/firebase");
 
-// GET pending vouchers
 async function getPendingVouchers(req, res) {
   const snapshot = await db
     .collection("users")
@@ -21,7 +20,6 @@ async function getPendingVouchers(req, res) {
   res.json({ success: true, data });
 }
 
-// APPROVE voucher
 async function approveVoucher(req, res) {
   const { phone } = req.body;
 
@@ -40,7 +38,6 @@ async function approveVoucher(req, res) {
   res.json({ success: true });
 }
 
-// REJECT voucher
 async function rejectVoucher(req, res) {
   const { phone } = req.body;
 
@@ -58,7 +55,6 @@ async function rejectVoucher(req, res) {
   res.json({ success: true });
 }
 
-// AUDIT LOGS
 async function getAuditLogs(req, res) {
   const snapshot = await db
     .collection("audit_logs")
