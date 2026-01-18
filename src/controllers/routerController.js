@@ -1,22 +1,22 @@
-const { getUserByPhone, createUser, updateUser } = require("../services/userService");
+const {
+  getUserByPhone,
+  createUser,
+  updateUser
+} = require("../services/userService");
 
-// ==========================
-// MAIN ROUTER
-// ==========================
 async function routeMessage(from, message) {
   try {
-    // 🔒 HARD GUARDS (CRITICAL)
-    if (!from || typeof from !== "string" || !from.trim()) {
-      console.warn("routeMessage ignored: invalid sender", from);
-      return "Invalid sender.";
+    const phone = String(from || "").trim();
+    const text = String(message || "").trim().toLowerCase();
+
+    if (!phone) {
+      console.error("routeMessage blocked: empty phone");
+      return "Invalid message source.";
     }
 
-    if (!message || typeof message !== "string") {
-      return "Invalid message.";
+    if (!text) {
+      return "Please send a valid message.";
     }
-
-    const phone = from.trim();
-    const text = message.trim().toLowerCase();
 
     let user = await getUserByPhone(phone);
 
@@ -26,13 +26,20 @@ async function routeMessage(from, message) {
     if (!user) {
       await createUser({
         phone,
-        stage: "new",
-        createdAt: new Date()
+        stage: "onboarding",
+        termsAccepted: false
       });
 
+      return "Welcome to Paylite 👋\nReply YES to begin.";
+    }
+
+    // =========================
+    // START FLOW
+    // =========================
+    if (text === "yes" && !user.termsAccepted) {
       return (
-        "Welcome to Paylite 👋\n\n" +
-        "Reply YES to begin."
+        "Before we continue, please review and accept our Terms & Conditions.\n" +
+        "Reply ACCEPT to proceed."
       );
     }
 
@@ -40,18 +47,11 @@ async function routeMessage(from, message) {
     // TERMS ACCEPTANCE
     // =========================
     if (!user.termsAccepted) {
-      if (text === "yes") {
-        return (
-          "Before we continue, please review and accept our Terms & Conditions.\n" +
-          "Reply ACCEPT to proceed."
-        );
-      }
-
       if (text === "accept") {
         await updateUser(phone, {
           termsAccepted: true,
           termsAcceptedAt: new Date(),
-          stage: "onboarding"
+          termsVersion: "v1.0"
         });
 
         return (
@@ -62,7 +62,7 @@ async function routeMessage(from, message) {
         );
       }
 
-      return "Reply YES to begin or ACCEPT to continue.";
+      return "Please reply ACCEPT to continue.";
     }
 
     // =========================
@@ -101,7 +101,7 @@ async function routeMessage(from, message) {
       } else if (text === "2") {
         await updateUser(phone, { repaymentOption: "weekly_4" });
       } else {
-        return "Select repayment:\n1️⃣ 30 days\n2️⃣ Weekly";
+        return "Select:\n1️⃣ 30 days\n2️⃣ Weekly";
       }
 
       return "Reply REQUEST to submit your voucher for approval.";
@@ -112,12 +112,13 @@ async function routeMessage(from, message) {
     // =========================
     if (text === "request") {
       if (user.voucherStatus === "pending") {
-        return "Your request is already under review ⏳";
+        return "Your voucher is already under review ⏳";
       }
 
       await updateUser(phone, {
         voucherStatus: "pending",
-        voucherRequestedAt: new Date()
+        voucherRequestedAt: new Date(),
+        hasActiveVoucher: false
       });
 
       return (
@@ -127,39 +128,32 @@ async function routeMessage(from, message) {
     }
 
     // =========================
-    // APPROVED → COLLECT METER
-    // =========================
-    if (user.voucherStatus === "approved" && !user.meterNumber) {
-      if (!/^\d{6,20}$/.test(text)) {
-        return "Please enter a valid electricity meter number.";
-      }
-
-      await updateUser(phone, {
-        meterNumber: text,
-        fulfillmentStatus: "pending"
-      });
-
-      return (
-        "Thank you ✅\n" +
-        "Your meter number has been received.\n" +
-        "Electricity will be processed shortly."
-      );
-    }
-
-    // =========================
     // ACTIVE VOUCHER
     // =========================
-    if (user.voucherStatus === "approved") {
+    if (user.voucherStatus === "approved" && user.hasActiveVoucher) {
+      if (text === "paid") {
+        await updateUser(phone, {
+          hasActiveVoucher: false,
+          voucherStatus: "none",
+          voucherAmount: null,
+          voucherFee: null,
+          voucherTotalRepayment: null,
+          repaymentOption: null
+        });
+
+        return "Payment confirmed ✅\nYou may request another voucher.";
+      }
+
       return (
         `Outstanding balance: R${user.voucherTotalRepayment}\n` +
-        "You will be notified once electricity is loaded."
+        "Reply PAID once payment is completed."
       );
     }
 
     return "Please follow the prompts to continue.";
 
-  } catch (error) {
-    console.error("routeMessage error:", error);
+  } catch (err) {
+    console.error("routeMessage fatal error:", err);
     return "A system error occurred. Please try again later.";
   }
 }
