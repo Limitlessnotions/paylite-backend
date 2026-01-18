@@ -10,13 +10,13 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-// Webhook (WhatsApp / Meta)
+// Webhook (WhatsApp)
 app.use("/webhook", webhookRoute);
 
 // Admin API (JSON)
 app.use("/admin-api", adminRoutes);
 
-// Admin UI (static site)
+// Admin UI (static)
 app.use("/admin", express.static("admin-ui"));
 
 app.get("/", (req, res) => {
