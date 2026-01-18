@@ -1,52 +1,24 @@
 // src/services/userService.js
 const { db } = require("./firebase");
 
-const USERS_COLLECTION = "users";
-
 // ==========================
-// DEFAULT USER STATE
-// ==========================
-function defaultUser(phone) {
-  const now = new Date();
-
-  return {
-    phone,
-    stage: "onboarding",
-
-    // Terms
-    termsAccepted: false,
-    termsAcceptedAt: null,
-    termsVersion: "v1.0",
-
-    // Voucher lifecycle
-    hasActiveVoucher: false,
-    voucherStatus: null, // pending | approved | repaid
-    voucherAmount: null,
-    voucherRequestedAt: null,
-
-    // Repayment
-    repaymentOption: null,
-    lastRepaidAt: null,
-
-    // Timestamps
-    createdAt: now,
-    updatedAt: now
-  };
-}
-
-// ==========================
-// READ USER
+// GET USER BY PHONE
 // ==========================
 async function getUserByPhone(phone) {
-  if (!phone) return null;
-
   try {
-    const ref = db.collection(USERS_COLLECTION).doc(phone);
+    if (!phone || typeof phone !== "string" || !phone.trim()) {
+      return null;
+    }
+
+    const ref = db.collection("users").doc(phone.trim());
     const snap = await ref.get();
 
     if (!snap.exists) return null;
 
-    return { phone: snap.id, ...snap.data() };
+    return {
+      phone: snap.id,
+      ...snap.data()
+    };
   } catch (e) {
     console.error("getUserByPhone error:", e);
     return null;
@@ -54,39 +26,46 @@ async function getUserByPhone(phone) {
 }
 
 // ==========================
-// CREATE USER (SAFE)
+// CREATE USER (HARDENED)
 // ==========================
-async function createUser(phone, extraData = {}) {
-  if (!phone) return null;
+async function createUser(data) {
+  try {
+    if (
+      !data ||
+      !data.phone ||
+      typeof data.phone !== "string" ||
+      !data.phone.trim()
+    ) {
+      console.warn("createUser skipped: invalid phone", data?.phone);
+      return;
+    }
 
-  const ref = db.collection(USERS_COLLECTION).doc(phone);
-
-  const payload = {
-    ...defaultUser(phone),
-    ...extraData,
-    updatedAt: new Date()
-  };
-
-  await ref.set(payload, { merge: true });
-
-  return payload;
+    await db
+      .collection("users")
+      .doc(data.phone.trim())
+      .set(data, { merge: true });
+  } catch (e) {
+    console.error("createUser error:", e);
+  }
 }
 
 // ==========================
-// UPDATE USER
+// UPDATE USER (HARDENED)
 // ==========================
-async function updateUser(phone, data = {}) {
-  if (!phone) return;
+async function updateUser(phone, data) {
+  try {
+    if (!phone || typeof phone !== "string" || !phone.trim()) {
+      console.warn("updateUser skipped: invalid phone", phone);
+      return;
+    }
 
-  await db.collection(USERS_COLLECTION)
-    .doc(phone)
-    .set(
-      {
-        ...data,
-        updatedAt: new Date()
-      },
-      { merge: true }
-    );
+    await db
+      .collection("users")
+      .doc(phone.trim())
+      .set(data, { merge: true });
+  } catch (e) {
+    console.error("updateUser error:", e);
+  }
 }
 
 module.exports = {
