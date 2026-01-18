@@ -1,25 +1,28 @@
 const express = require("express");
-const router = express.Router();
+const cors = require("cors");
 
-const {
-  getPendingVouchers,
-  approveVoucher,
-  rejectVoucher,
-  getAuditLogs
-} = require("../controllers/adminController");
+const webhookRoute = require("./src/routes/webhook");
+const adminRoutes = require("./src/routes/admin.route");
 
-// 🔒 Simple token guard
-router.use((req, res, next) => {
-  const token = req.headers["x-admin-token"];
-  if (token !== process.env.ADMIN_TOKEN) {
-    return res.status(401).json({ success: false, error: "Unauthorized" });
-  }
-  next();
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+app.use(cors());
+app.use(express.json());
+
+// Webhook (WhatsApp / Meta)
+app.use("/webhook", webhookRoute);
+
+// Admin API (JSON)
+app.use("/admin-api", adminRoutes);
+
+// Admin UI (static site)
+app.use("/admin", express.static("admin-ui"));
+
+app.get("/", (req, res) => {
+  res.send("Paylite backend is running");
 });
 
-router.get("/pending-vouchers", getPendingVouchers);
-router.post("/approve-voucher", approveVoucher);
-router.post("/reject-voucher", rejectVoucher);
-router.get("/audit-logs", getAuditLogs);
-
-module.exports = router;
+app.listen(PORT, () => {
+  console.log(`Paylite server running on port ${PORT}`);
+});
