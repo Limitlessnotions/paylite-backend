@@ -1,133 +1,99 @@
-const API_BASE = "/admin";
+// ✅ RELATIVE API PATH — DO NOT USE FULL URL
+const API_BASE = "/admin-api";
 const TOKEN_KEY = "paylite_admin_token";
 
-let vouchers = [];
-let audits = [];
-
-// =======================
-// LOGIN / LOGOUT
-// =======================
-function login() {
+function saveToken() {
   const token = document.getElementById("tokenInput").value;
-  if (!token) return alert("Admin token required");
+  if (!token) return alert("Token required");
 
   localStorage.setItem(TOKEN_KEY, token);
   document.getElementById("auth").classList.add("hidden");
-  document.getElementById("dashboard").classList.remove("hidden");
+  document.getElementById("content").classList.remove("hidden");
 
-  loadAll();
+  loadPendingVouchers();
+  loadAuditLogs();
 }
 
-function logout() {
-  localStorage.removeItem(TOKEN_KEY);
-  location.reload();
-}
+async function loadPendingVouchers() {
+  const token = localStorage.getItem(TOKEN_KEY);
 
-// =======================
-// LOAD DATA
-// =======================
-async function loadAll() {
-  await loadVouchers();
-  await loadAuditLogs();
-}
-
-async function loadVouchers() {
   const res = await fetch(`${API_BASE}/pending-vouchers`, {
-    headers: { "x-admin-token": localStorage.getItem(TOKEN_KEY) }
+    headers: { "x-admin-token": token }
   });
 
   const json = await res.json();
-  vouchers = json.data || [];
-  renderTable();
+  const container = document.getElementById("voucherList");
+  container.innerHTML = "";
+
+  if (!json.data || json.data.length === 0) {
+    container.innerHTML = "<p>No pending vouchers.</p>";
+    return;
+  }
+
+  json.data.forEach(v => {
+    const row = document.createElement("div");
+    row.className = "row";
+
+    row.innerHTML = `
+      <span>${v.phone}</span>
+      <span>R${v.voucherAmount}</span>
+      <span class="pending">Pending</span>
+      <span>
+        <button onclick="approve('${v.phone}')">Approve</button>
+        <button onclick="reject('${v.phone}')">Reject</button>
+      </span>
+    `;
+
+    container.appendChild(row);
+  });
 }
 
-// =======================
-// TABLE + FILTERS
-// =======================
-function renderTable() {
-  const search = document.getElementById("searchInput").value.toLowerCase();
-  const status = document.getElementById("statusFilter").value;
-  const body = document.getElementById("tableBody");
-
-  body.innerHTML = "";
-
-  vouchers
-    .filter(v =>
-      v.phone.toLowerCase().includes(search) &&
-      (status === "all" || v.voucherStatus === status)
-    )
-    .forEach(v => {
-      body.innerHTML += `
-        <tr>
-          <td>${v.phone}</td>
-          <td>R${v.voucherAmount}</td>
-          <td>
-            <span class="badge ${v.voucherStatus}">
-              ${v.voucherStatus}
-            </span>
-          </td>
-          <td>
-            <button onclick="approve('${v.phone}')">Approve</button>
-            <button onclick="reject('${v.phone}')">Reject</button>
-          </td>
-        </tr>
-      `;
-    });
-}
-
-// =======================
-// ACTIONS
-// =======================
 async function approve(phone) {
   await action("approve-voucher", phone);
 }
 
 async function reject(phone) {
-  const reason = prompt("Reason for rejection?");
-  if (!reason) return;
-  await action("reject-voucher", phone, { reason });
+  await action("reject-voucher", phone);
 }
 
-async function action(endpoint, phone, extra = {}) {
+async function action(endpoint, phone) {
+  const token = localStorage.getItem(TOKEN_KEY);
+
   await fetch(`${API_BASE}/${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-admin-token": localStorage.getItem(TOKEN_KEY)
+      "x-admin-token": token
     },
-    body: JSON.stringify({ phone, ...extra })
+    body: JSON.stringify({ phone })
   });
 
-  loadAll();
+  loadPendingVouchers();
+  loadAuditLogs();
 }
 
-// =======================
-// AUDIT LOG VIEWER
-// =======================
 async function loadAuditLogs() {
+  const token = localStorage.getItem(TOKEN_KEY);
   const res = await fetch(`${API_BASE}/audit-logs`, {
-    headers: { "x-admin-token": localStorage.getItem(TOKEN_KEY) }
+    headers: { "x-admin-token": token }
   });
 
   const json = await res.json();
   const container = document.getElementById("auditLog");
   container.innerHTML = "";
 
-  (json.data || []).forEach(log => {
+  json.data.forEach(log => {
     container.innerHTML += `
-      <p>
-        [${new Date(log.timestamp).toLocaleString()}]
-        <strong>${log.action}</strong> — ${log.phone}
-      </p>
+      <p>[${new Date(log.timestamp).toLocaleString()}]
+      ${log.action} — ${log.phone}</p>
     `;
   });
 }
 
-// =======================
-// AUTO LOGIN
-// =======================
+// Auto restore session
 if (localStorage.getItem(TOKEN_KEY)) {
   document.getElementById("auth").classList.add("hidden");
-  document.getElementById("dashboard").classList.remove("hidden");
-  loadAll();
+  document.getElementById("content").classList.remove("hidden");
+  loadPendingVouchers();
+  loadAuditLogs();
 }
