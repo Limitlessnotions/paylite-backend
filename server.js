@@ -1,33 +1,25 @@
 const express = require("express");
-const cors = require("cors");
-const path = require("path");
+const router = express.Router();
 
-const app = express();
+const {
+  getPendingVouchers,
+  approveVoucher,
+  rejectVoucher,
+  getAuditLogs
+} = require("../controllers/adminController");
 
-app.use(cors());
-app.use(express.json());
-
-// Serve admin UI
-app.use("/admin", express.static(path.join(__dirname, "admin-ui")));
-
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "admin-ui", "index.html"));
+// 🔒 Simple token guard
+router.use((req, res, next) => {
+  const token = req.headers["x-admin-token"];
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  next();
 });
 
-// API routes
-app.use("/webhook", require("./src/routes/webhook"));
-app.use("/admin-api", require("./src/routes/admin.route"));
+router.get("/pending-vouchers", getPendingVouchers);
+router.post("/approve-voucher", approveVoucher);
+router.post("/reject-voucher", rejectVoucher);
+router.get("/audit-logs", getAuditLogs);
 
-app.get("/", (req, res) => {
-  res.send("Paylite Backend is running.");
-});
-
-// 404 handler LAST
-app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
-});
-
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+module.exports = router;
