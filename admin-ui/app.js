@@ -1,97 +1,86 @@
-// IMPORTANT:
-// Since the admin UI is served from the SAME Express server,
-// we use a RELATIVE PATH instead of the full Render URL.
 const API_BASE = "/admin";
 const TOKEN_KEY = "paylite_admin_token";
 
-// Save admin token and unlock UI
-function saveToken() {
+let vouchers = [];
+let audits = [];
+
+function login() {
   const token = document.getElementById("tokenInput").value;
-  if (!token) {
-    alert("Admin token is required");
-    return;
-  }
+  if (!token) return alert("Token required");
 
   localStorage.setItem(TOKEN_KEY, token);
-
   document.getElementById("auth").classList.add("hidden");
-  document.getElementById("content").classList.remove("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
 
-  loadPendingVouchers();
+  loadData();
 }
 
-// Load pending voucher requests
-async function loadPendingVouchers() {
-  const token = localStorage.getItem(TOKEN_KEY);
+function logout() {
+  localStorage.removeItem(TOKEN_KEY);
+  location.reload();
+}
 
+async function loadData() {
+  await loadVouchers();
+  await loadAuditLogs();
+}
+
+async function loadVouchers() {
   const res = await fetch(`${API_BASE}/pending-vouchers`, {
-    headers: {
-      "x-admin-token": token
-    }
+    headers: { "x-admin-token": localStorage.getItem(TOKEN_KEY) }
   });
-
-  if (!res.ok) {
-    alert("Unauthorized or failed to fetch data");
-    return;
-  }
 
   const json = await res.json();
-  const container = document.getElementById("voucherList");
-  container.innerHTML = "";
-
-  if (!json.data || json.data.length === 0) {
-    container.innerHTML = "<p>No pending vouchers.</p>";
-    return;
-  }
-
-  json.data.forEach(v => {
-    const div = document.createElement("div");
-    div.className = "card";
-
-    div.innerHTML = `
-      <p><strong>Phone:</strong> ${v.phone}</p>
-      <p><strong>Amount:</strong> R${v.voucherAmount}</p>
-      <p><strong>Repayment:</strong> ${v.repaymentOption}</p>
-      <button class="approve" onclick="approve('${v.phone}')">Approve</button>
-      <button class="reject" onclick="reject('${v.phone}')">Reject</button>
-    `;
-
-    container.appendChild(div);
-  });
+  vouchers = json.data || [];
+  renderTable();
 }
 
-// Approve voucher
+function renderTable() {
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  const status = document.getElementById("statusFilter").value;
+
+  const body = document.getElementById("tableBody");
+  body.innerHTML = "";
+
+  vouchers
+    .filter(v =>
+      v.phone.toLowerCase().includes(search) &&
+      (status === "all" || v.voucherStatus === status)
+    )
+    .forEach(v => {
+      body.innerHTML += `
+        <tr>
+          <td>${v.phone}</td>
+          <td>R${v.voucherAmount}</td>
+          <td><span class="badge ${v.voucherStatus}">${v.voucherStatus}</span></td>
+          <td>
+            <button onclick="approve('${v.phone}')">Approve</button>
+            <button onclick="reject('${v.phone}')">Reject</button>
+          </td>
+        </tr>
+      `;
+    });
+}
+
 async function approve(phone) {
-  await adminAction("approve-voucher", phone);
+  await action("approve-voucher", phone);
 }
 
-// Reject voucher
 async function reject(phone) {
-  const reason = prompt("Enter rejection reason:");
+  const reason = prompt("Reason?");
   if (!reason) return;
-
-  await adminAction("reject-voucher", phone, { reason });
+  await action("reject-voucher", phone, { reason });
 }
 
-// Shared admin action handler
-async function adminAction(endpoint, phone, extra = {}) {
-  const token = localStorage.getItem(TOKEN_KEY);
-
+async function action(endpoint, phone, extra = {}) {
   await fetch(`${API_BASE}/${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-admin-token": token
+      "x-admin-token": localStorage.getItem(TOKEN_KEY)
     },
     body: JSON.stringify({ phone, ...extra })
   });
 
-  loadPendingVouchers();
-}
-
-// Auto-restore admin session if token exists
-if (localStorage.getItem(TOKEN_KEY)) {
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("content").classList.remove("hidden");
-  loadPendingVouchers();
+  loadVouchers();
 }
