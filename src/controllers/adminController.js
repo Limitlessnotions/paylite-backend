@@ -1,6 +1,8 @@
 const { db } = require("../services/firebase");
 
-// GET pending vouchers
+// =========================
+// GET PENDING VOUCHERS
+// =========================
 async function getPendingVouchers(req, res) {
   try {
     const snapshot = await db
@@ -30,35 +32,78 @@ async function getPendingVouchers(req, res) {
   }
 }
 
-// APPROVE voucher
+// =========================
+// APPROVE VOUCHER
+// =========================
 async function approveVoucher(req, res) {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ success: false });
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, error: "Phone required" });
+    }
 
-  await db.collection("users").doc(phone).update({
-    voucherStatus: "approved",
-    hasActiveVoucher: true,
-    approvedAt: new Date()
-  });
+    await db.collection("users").doc(phone).update({
+      voucherStatus: "approved",
+      hasActiveVoucher: true,
+      approvedAt: new Date()
+    });
 
-  return res.json({ success: true });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("approveVoucher error:", err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
 }
 
-// REJECT voucher
+// =========================
+// REJECT VOUCHER
+// =========================
 async function rejectVoucher(req, res) {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ success: false });
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, error: "Phone required" });
+    }
 
-  await db.collection("users").doc(phone).update({
-    voucherStatus: "rejected",
-    rejectedAt: new Date()
-  });
+    await db.collection("users").doc(phone).update({
+      voucherStatus: "rejected",
+      rejectedAt: new Date()
+    });
 
-  return res.json({ success: true });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("rejectVoucher error:", err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
 }
 
+// =========================
+// GET AUDIT LOGS
+// =========================
+async function getAuditLogs(req, res) {
+  try {
+    const snapshot = await db
+      .collection("audit_logs")
+      .orderBy("timestamp", "desc")
+      .limit(50)
+      .get();
+
+    const logs = [];
+    snapshot.forEach(doc => logs.push(doc.data()));
+
+    return res.json({ success: true, data: logs });
+  } catch (err) {
+    console.error("getAuditLogs error:", err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+}
+
+// =========================
+// EXPORTS (THIS IS CRITICAL)
+// =========================
 module.exports = {
   getPendingVouchers,
   approveVoucher,
-  rejectVoucher
+  rejectVoucher,
+  getAuditLogs
 };
