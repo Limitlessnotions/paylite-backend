@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { requireAdmin } = require("../middleware/adminJwt");
 
 const {
   getPendingVouchers,
@@ -8,14 +9,8 @@ const {
   getAuditLogs
 } = require("../controllers/adminController");
 
-// Admin token guard
-router.use((req, res, next) => {
-  const token = req.headers["x-admin-token"];
-  if (token !== process.env.ADMIN_TOKEN) {
-    return res.status(401).json({ success: false, error: "Unauthorized" });
-  }
-  next();
-});
+// 🔐 JWT admin protection (REPLACES x-admin-token)
+router.use(requireAdmin);
 
 router.get("/pending-vouchers", getPendingVouchers);
 router.post("/approve-voucher", approveVoucher);
