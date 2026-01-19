@@ -1,76 +1,64 @@
 const { db } = require("../services/firebase");
 
+// GET pending vouchers
 async function getPendingVouchers(req, res) {
-  const snapshot = await db
-    .collection("users")
-    .where("voucherStatus", "==", "pending")
-    .get();
+  try {
+    const snapshot = await db
+      .collection("users")
+      .where("voucherStatus", "==", "pending")
+      .get();
 
-  const data = [];
-  snapshot.forEach(doc => {
-    const d = doc.data();
-    data.push({
-      phone: doc.id,
-      voucherAmount: d.voucherAmount,
-      repaymentOption: d.repaymentOption,
-      requestedAt: d.voucherRequestedAt
+    const results = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+
+      results.push({
+        phone: doc.id,
+        meterNumber: data.meterNumber || null,
+        meterSupplier: data.meterSupplier || null,
+        voucherAmount: data.voucherAmount,
+        repaymentOption: data.repaymentOption,
+        requestedAt: data.voucherRequestedAt || null
+      });
     });
-  });
 
-  res.json({ success: true, data });
+    return res.json({ success: true, data: results });
+  } catch (err) {
+    console.error("getPendingVouchers error:", err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
 }
 
+// APPROVE voucher
 async function approveVoucher(req, res) {
   const { phone } = req.body;
+  if (!phone) return res.status(400).json({ success: false });
 
   await db.collection("users").doc(phone).update({
     voucherStatus: "approved",
     hasActiveVoucher: true,
-    updatedAt: new Date()
+    approvedAt: new Date()
   });
 
-  await db.collection("audit_logs").add({
-    action: "APPROVED",
-    phone,
-    timestamp: new Date()
-  });
-
-  res.json({ success: true });
+  return res.json({ success: true });
 }
 
+// REJECT voucher
 async function rejectVoucher(req, res) {
   const { phone } = req.body;
+  if (!phone) return res.status(400).json({ success: false });
 
   await db.collection("users").doc(phone).update({
     voucherStatus: "rejected",
-    updatedAt: new Date()
+    rejectedAt: new Date()
   });
 
-  await db.collection("audit_logs").add({
-    action: "REJECTED",
-    phone,
-    timestamp: new Date()
-  });
-
-  res.json({ success: true });
-}
-
-async function getAuditLogs(req, res) {
-  const snapshot = await db
-    .collection("audit_logs")
-    .orderBy("timestamp", "desc")
-    .limit(50)
-    .get();
-
-  const logs = [];
-  snapshot.forEach(doc => logs.push(doc.data()));
-
-  res.json({ success: true, data: logs });
+  return res.json({ success: true });
 }
 
 module.exports = {
   getPendingVouchers,
   approveVoucher,
-  rejectVoucher,
-  getAuditLogs
+  rejectVoucher
 };
