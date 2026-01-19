@@ -1,38 +1,61 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
-const app = express();
+const bodyParser = require("body-parser");
 
-// Routes
-const webhookRoute = require("./src/routes/webhook");
-const adminRoute = require("./src/routes/admin.route");
+const webhookRoutes = require("./src/routes/webhook");
+const adminRoutes = require("./src/routes/admin.route");
 const adminAuthRoutes = require("./src/routes/adminAuth.route");
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+// ⚠️ TEMPORARY — REMOVE AFTER ADMIN IS CREATED
+const bootstrapAdminRoutes = require("./src/routes/bootstrapAdmin.route");
 
-// Health check
+const app = express();
+
+// ======================
+// MIDDLEWARE
+// ======================
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// ======================
+// HEALTH CHECK
+// ======================
 app.get("/", (req, res) => {
-  res.send("Paylite Backend is running.");
+  res.json({ success: true, message: "Paylite backend running" });
 });
 
-// 🔐 Admin auth (login)
+// ======================
+// ROUTES
+// ======================
+
+// WhatsApp webhook
+app.use("/webhook", webhookRoutes);
+
+// Admin authentication (login, reset, etc.)
 app.use("/admin-auth", adminAuthRoutes);
 
-// Admin (JWT-protected)
-app.use("/admin", adminRoute);
+// Admin protected routes (JWT)
+app.use("/admin", adminRoutes);
 
-// Webhook (WhatsApp)
-app.use("/webhook", webhookRoute);
+// ⚠️ TEMPORARY BOOTSTRAP ROUTE
+// REMOVE AFTER CREATING FIRST ADMIN
+app.use("/bootstrap", bootstrapAdminRoutes);
 
-// 404 handler
+// ======================
+// 404 HANDLER
+// ======================
 app.use((req, res) => {
   res.status(404).json({ success: false, error: "Route not found" });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
+// ======================
+// START SERVER
+// ======================
+const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, () => {
   console.log(`Paylite server running on port ${PORT}`);
 });
