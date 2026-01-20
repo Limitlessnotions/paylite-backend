@@ -1,61 +1,34 @@
 require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
 
 const webhookRoutes = require("./src/routes/webhook");
 const adminRoutes = require("./src/routes/admin.route");
 const adminAuthRoutes = require("./src/routes/adminAuth.route");
 
-// ⚠️ TEMPORARY — REMOVE AFTER ADMIN IS CREATED
-const bootstrapAdminRoutes = require("./src/routes/bootstrapAdmin.route");
-
 const app = express();
 
-// ======================
-// MIDDLEWARE
-// ======================
+// Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 
-// ======================
-// HEALTH CHECK
-// ======================
+// Routes
+app.use("/webhook", webhookRoutes);
+app.use("/admin-auth", adminAuthRoutes);
+app.use("/admin", adminRoutes);
+
+// Health check
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Paylite backend running" });
 });
 
-// ======================
-// ROUTES
-// ======================
-
-// WhatsApp webhook
-app.use("/webhook", webhookRoutes);
-
-// Admin authentication (login, reset, etc.)
-app.use("/admin-auth", adminAuthRoutes);
-
-// Admin protected routes (JWT)
-app.use("/admin", adminRoutes);
-
-// ⚠️ TEMPORARY BOOTSTRAP ROUTE
-// REMOVE AFTER CREATING FIRST ADMIN
-app.use("/bootstrap", bootstrapAdminRoutes);
-
-// ======================
-// 404 HANDLER
-// ======================
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, error: "Route not found" });
 });
 
-// ======================
-// START SERVER
-// ======================
+// Start server
 const PORT = process.env.PORT || 10000;
-
 app.listen(PORT, () => {
   console.log(`Paylite server running on port ${PORT}`);
 });
