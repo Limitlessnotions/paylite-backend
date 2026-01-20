@@ -128,23 +128,28 @@ async function routeMessage(from, message) {
     }
 
     // =========================
-    // SUBMIT REQUEST
-    // =========================
-    if (text === "request") {
-      await updateUser(from, {
-        voucherStatus: "pending",
-        voucherRequestedAt: new Date()
-      });
-
-      return "✅ Your request has been submitted for approval.";
+ // SUBMIT VOUCHER REQUEST
+if (text === "request") {
+    if (!user.meterNumber || !user.meterSupplier) {
+        return (
+            "⚠️ Meter details missing.\n\n" +
+            "Please enter your electricity meter number first.\n" +
+            "Meter numbers are 7–13 digits."
+        );
     }
 
-    return "Please follow the prompts to continue.";
+    if (user.voucherStatus === "pending") {
+        return "Your voucher request is already under review ⏳";
+    }
 
-  } catch (err) {
-    console.error("routeMessage error:", err);
-    return "A system error occurred. Please try again later.";
-  }
+    await updateUser(from, {
+        voucherStatus: "pending",
+        voucherRequestedAt: new Date(),
+        updatedAt: new Date()
+    });
+
+    return (
+        "Your voucher request has been submitted ✅\n" +
+        "You will be notified once reviewed."
+    );
 }
-
-module.exports = { routeMessage };
