@@ -1,24 +1,10 @@
-// ✅ RELATIVE API PATH — DO NOT USE FULL URL
-const API_BASE = "/admin-api";
-const TOKEN_KEY = "paylite_admin_token";
-
-function saveToken() {
-  const token = document.getElementById("tokenInput").value;
-  if (!token) return alert("Token required");
-
-  localStorage.setItem(TOKEN_KEY, token);
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("content").classList.remove("hidden");
-
-  loadPendingVouchers();
-  loadAuditLogs();
-}
-
 async function loadPendingVouchers() {
   const token = localStorage.getItem(TOKEN_KEY);
 
   const res = await fetch(`${API_BASE}/pending-vouchers`, {
-    headers: { "x-admin-token": token }
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
   });
 
   const json = await res.json();
@@ -31,69 +17,35 @@ async function loadPendingVouchers() {
   }
 
   json.data.forEach(v => {
-    const row = document.createElement("div");
-    row.className = "row";
+    const div = document.createElement("div");
+    div.className = "card";
 
-    row.innerHTML = `
-      <span>${v.phone}</span>
-      <span>R${v.voucherAmount}</span>
-      <span class="pending">Pending</span>
-      <span>
-        <button onclick="approve('${v.phone}')">Approve</button>
-        <button onclick="reject('${v.phone}')">Reject</button>
-      </span>
+    const hasMeter = v.meterNumber && v.meterSupplier;
+
+    div.innerHTML = `
+      <p><strong>Phone:</strong> ${v.phone}</p>
+      <p><strong>Amount:</strong> R${v.voucherAmount}</p>
+      <p>
+        <strong>Meter:</strong>
+        ${hasMeter
+          ? `<span class="badge success">${v.meterNumber} (${v.meterSupplier})</span>`
+          : `<span class="badge danger">MISSING</span>`}
+      </p>
+      <p><strong>Repayment:</strong> ${v.repaymentOption}</p>
+
+      <button
+        class="approve"
+        ${hasMeter ? "" : "disabled"}
+        onclick="approve('${v.phone}')"
+      >
+        Approve
+      </button>
+
+      <button class="reject" onclick="reject('${v.phone}')">
+        Reject
+      </button>
     `;
 
-    container.appendChild(row);
+    container.appendChild(div);
   });
-}
-
-async function approve(phone) {
-  await action("approve-voucher", phone);
-}
-
-async function reject(phone) {
-  await action("reject-voucher", phone);
-}
-
-async function action(endpoint, phone) {
-  const token = localStorage.getItem(TOKEN_KEY);
-
-  await fetch(`${API_BASE}/${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-token": token
-    },
-    body: JSON.stringify({ phone })
-  });
-
-  loadPendingVouchers();
-  loadAuditLogs();
-}
-
-async function loadAuditLogs() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const res = await fetch(`${API_BASE}/audit-logs`, {
-    headers: { "x-admin-token": token }
-  });
-
-  const json = await res.json();
-  const container = document.getElementById("auditLog");
-  container.innerHTML = "";
-
-  json.data.forEach(log => {
-    container.innerHTML += `
-      <p>[${new Date(log.timestamp).toLocaleString()}]
-      ${log.action} — ${log.phone}</p>
-    `;
-  });
-}
-
-// Auto restore session
-if (localStorage.getItem(TOKEN_KEY)) {
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("content").classList.remove("hidden");
-  loadPendingVouchers();
-  loadAuditLogs();
 }
