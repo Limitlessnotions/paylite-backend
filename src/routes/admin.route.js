@@ -9,7 +9,7 @@ const {
   getAuditLogs
 } = require("../controllers/adminController");
 
-// 🔐 JWT admin protection (REPLACES x-admin-token)
+// 🔐 JWT guard
 router.use(requireAdmin);
 
 router.get("/pending-vouchers", getPendingVouchers);
