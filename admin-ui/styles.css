@@ -1,45 +1,22 @@
-body {
-  font-family: Arial, sans-serif;
-  background: #0f172a;
-  color: #e5e7eb;
-  margin: 0;
-}
-
-.container {
-  max-width: 1000px;
-  margin: 40px auto;
-}
-
-.hidden {
-  display: none;
-}
-
-input, select, button {
-  padding: 8px;
-  margin-right: 8px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 16px;
-}
-
-th, td {
-  padding: 10px;
-  border-bottom: 1px solid #334155;
-}
-
 .badge {
   padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: bold;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.pending { background: #eab308; color: #000; }
-.approved { background: #22c55e; color: #000; }
-.rejected { background: #ef4444; color: #fff; }
+.badge.success {
+  background: #16a34a;
+  color: white;
+}
 
-.top-bar {
-  margin-bottom: 16px;
+.badge.danger {
+  background: #dc2626;
+  color: white;
+}
+
+button:disabled {
+  background: #555;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
