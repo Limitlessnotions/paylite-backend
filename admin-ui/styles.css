@@ -1,22 +1,75 @@
-.badge {
-  padding: 4px 8px;
+body {
+  background: #052e16;
+  color: #ecfdf5;
+  font-family: Arial, sans-serif;
+  padding: 30px;
+}
+
+.login-box {
+  max-width: 400px;
+  margin: 80px auto;
+  background: #064e3b;
+  padding: 30px;
+  border-radius: 10px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  border: none;
 }
 
-.badge.success {
-  background: #16a34a;
-  color: white;
+button {
+  background: #22c55e;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-.badge.danger {
+button.danger {
   background: #dc2626;
-  color: white;
 }
 
 button:disabled {
   background: #555;
   cursor: not-allowed;
-  opacity: 0.6;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.list {
+  margin-top: 20px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr 2fr;
+  gap: 10px;
+  background: #064e3b;
+  padding: 14px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.badge.success {
+  background: #16a34a;
+}
+
+.badge.danger {
+  background: #dc2626;
 }
