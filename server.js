@@ -4,7 +4,7 @@ const cors = require("cors");
 const path = require("path");
 
 const webhookRoutes = require("./src/routes/webhook");
-const adminApiRoutes = require("./src/routes/admin.route");
+const adminRoutes = require("./src/routes/admin.route");
 const adminAuthRoutes = require("./src/routes/adminAuth.route");
 
 const app = express();
@@ -13,21 +13,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ===== API ROUTES =====
+// ===== ROUTES =====
+
+// Webhooks
 app.use("/webhook", webhookRoutes);
+
+// Admin auth (login)
 app.use("/admin-auth", adminAuthRoutes);
-app.use("/admin-api", adminApiRoutes);
 
-// ===== ADMIN UI (STATIC) =====
-app.use(
-  "/admin",
-  express.static(path.join(__dirname, "admin-ui"))
-);
+// Admin API (JWT protected)
+app.use("/admin-api", adminRoutes);
 
-// Default admin UI entry
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "admin-ui", "index.html"));
-});
+// Admin UI (STATIC — NO AUTH HERE)
+app.use("/admin", express.static(path.join(__dirname, "admin-ui")));
 
 // Health check
 app.get("/", (req, res) => {
