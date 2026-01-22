@@ -26,11 +26,6 @@ async function login() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  if (!email || !password) {
-    alert("Email and password required");
-    return;
-  }
-
   const res = await fetch("/admin-auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -38,11 +33,7 @@ async function login() {
   });
 
   const json = await res.json();
-
-  if (!json.success) {
-    alert(json.error || "Login failed");
-    return;
-  }
+  if (!json.success) return alert(json.error);
 
   localStorage.setItem(TOKEN_KEY, json.token);
   showContent();
@@ -66,35 +57,30 @@ async function loadPendingVouchers() {
   const container = document.getElementById("voucherList");
   container.innerHTML = "";
 
-  if (!json.data || json.data.length === 0) {
-    container.innerHTML = "<p>No pending vouchers.</p>";
+  if (!json.data?.length) {
+    container.innerHTML = "<p>No pending vouchers</p>";
     return;
   }
 
   json.data.forEach(v => {
     const hasMeter = v.meterNumber && v.meterSupplier;
 
-    const row = document.createElement("div");
-    row.className = "card";
+    const card = document.createElement("div");
+    card.className = "card";
 
-    row.innerHTML = `
-      <p><strong>Phone:</strong> ${v.phone}</p>
-      <p><strong>Amount:</strong> R${v.voucherAmount}</p>
-      <p>
-        <strong>Meter:</strong>
+    card.innerHTML = `
+      <p><b>Phone:</b> ${v.phone}</p>
+      <p><b>Amount:</b> R${v.voucherAmount}</p>
+      <p><b>Meter:</b>
         ${hasMeter
           ? `<span class="badge success">${v.meterNumber} (${v.meterSupplier})</span>`
           : `<span class="badge danger">MISSING</span>`}
       </p>
-      <p><strong>Repayment:</strong> ${v.repaymentOption}</p>
-
-      <button ${hasMeter ? "" : "disabled"} onclick="approve('${v.phone}')">
-        Approve
-      </button>
+      <button ${hasMeter ? "" : "disabled"} onclick="approve('${v.phone}')">Approve</button>
       <button onclick="reject('${v.phone}')">Reject</button>
     `;
 
-    container.appendChild(row);
+    container.appendChild(card);
   });
 }
 
@@ -108,7 +94,6 @@ async function reject(phone) {
 
 async function action(endpoint, phone) {
   const token = localStorage.getItem(TOKEN_KEY);
-
   await fetch(`${API_BASE}/${endpoint}`, {
     method: "POST",
     headers: {
@@ -117,13 +102,11 @@ async function action(endpoint, phone) {
     },
     body: JSON.stringify({ phone })
   });
-
   loadPendingVouchers();
 }
 
 async function loadAuditLogs() {
   const token = localStorage.getItem(TOKEN_KEY);
-
   const res = await fetch(`${API_BASE}/audit-logs`, {
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -134,8 +117,7 @@ async function loadAuditLogs() {
 
   json.data.forEach(log => {
     container.innerHTML += `
-      <p>[${new Date(log.timestamp).toLocaleString()}]
-      ${log.action} — ${log.phone}</p>
+      <p>[${new Date(log.timestamp).toLocaleString()}] ${log.action} — ${log.phone}</p>
     `;
   });
 }
