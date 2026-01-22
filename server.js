@@ -4,41 +4,50 @@ const cors = require("cors");
 const path = require("path");
 
 const webhookRoutes = require("./src/routes/webhook");
-const adminRoutes = require("./src/routes/admin.route");
+const adminApiRoutes = require("./src/routes/admin.route");
 const adminAuthRoutes = require("./src/routes/adminAuth.route");
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// ===== ROUTES =====
-
-// Webhooks
-app.use("/webhook", webhookRoutes);
-
-// Admin auth (login)
-app.use("/admin-auth", adminAuthRoutes);
-
-// Admin API (JWT protected)
-app.use("/admin-api", adminRoutes);
-
-// Admin UI (STATIC — NO AUTH HERE)
+/**
+ * 1️⃣ PUBLIC UI (NO AUTH)
+ * Must come BEFORE any /admin-api logic
+ */
 app.use("/admin", express.static(path.join(__dirname, "admin-ui")));
 
-// Health check
-app.get("/", (req, res) => {
-  res.json({ success: true, message: "Paylite backend running" });
-});
+/**
+ * 2️⃣ AUTH
+ */
+app.use("/admin-auth", adminAuthRoutes);
 
-// 404
-app.use((req, res) => {
-  res.status(404).json({ success: false, error: "Route not found" });
-});
+/**
+ * 3️⃣ JWT-PROTECTED ADMIN API
+ */
+app.use("/admin-api", adminApiRoutes);
 
-// Start server
+/**
+ * 4️⃣ WEBHOOK
+ */
+app.use("/webhook", webhookRoutes);
+
+/**
+ * Health
+ */
+app.get("/", (_, res) =>
+  res.json({ success: true, message: "Paylite backend running" })
+);
+
+/**
+ * 404
+ */
+app.use((_, res) =>
+  res.status(404).json({ success: false, error: "Route not found" })
+);
+
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`Paylite server running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`Paylite server running on port ${PORT}`)
+);
