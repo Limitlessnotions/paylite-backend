@@ -13,13 +13,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// API routes
+// =======================
+// PUBLIC ROUTES
+// =======================
 app.use("/webhook", webhookRoutes);
 app.use("/admin-auth", adminAuthRoutes);
-app.use("/admin", adminRoutes);
 
-// Admin UI (STATIC)
-app.use("/admin", express.static(path.join(__dirname, "admin-ui")));
+// =======================
+// ADMIN UI (STATIC) — MUST COME FIRST
+// =======================
+app.use(
+  "/admin",
+  express.static(path.join(__dirname, "admin-ui"))
+);
+
+// =======================
+// ADMIN API (JWT PROTECTED)
+// =======================
+app.use("/admin-api", adminRoutes);
 
 // Health check
 app.get("/", (req, res) => {
