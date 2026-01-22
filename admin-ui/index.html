@@ -1,27 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Paylite Admin</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<div id="loginBox" class="login-box" style="display:none">
-  <h2>Admin Login</h2>
-  <input id="email" placeholder="Email" />
-  <input id="password" type="password" placeholder="Password" />
-  <button onclick="login()">Login</button>
-</div>
+  <!-- LOGIN -->
+  <div id="auth">
+    <h2>Admin Login</h2>
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+  </div>
 
-<div id="dashboard" style="display:none">
-  <header>
-    <h1>Paylite Admin Panel</h1>
+  <!-- DASHBOARD -->
+  <div id="content" class="hidden">
+    <h2>Pending Vouchers</h2>
+    <div id="voucherList"></div>
+
+    <h2>Audit Log</h2>
+    <div id="auditLog"></div>
+
     <button onclick="logout()">Logout</button>
-  </header>
+  </div>
 
-  <div id="voucherList" class="list"></div>
-</div>
-
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
