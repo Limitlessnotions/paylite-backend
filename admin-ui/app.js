@@ -2,24 +2,27 @@ const API_BASE = "/admin-api";
 const TOKEN_KEY = "paylite_admin_token";
 
 document.addEventListener("DOMContentLoaded", () => {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) {
-    showContent();
-    loadPendingVouchers();
-    loadAuditLogs();
-  } else {
+  try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    token ? showContent() : showLogin();
+    if (token) {
+      loadPendingVouchers();
+      loadAuditLogs();
+    }
+  } catch (e) {
+    console.error("Init error:", e);
     showLogin();
   }
 });
 
 function showLogin() {
-  document.getElementById("auth").classList.remove("hidden");
-  document.getElementById("content").classList.add("hidden");
+  document.getElementById("auth").style.display = "block";
+  document.getElementById("content").style.display = "none";
 }
 
 function showContent() {
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("content").classList.remove("hidden");
+  document.getElementById("auth").style.display = "none";
+  document.getElementById("content").style.display = "block";
 }
 
 async function login() {
@@ -33,7 +36,11 @@ async function login() {
   });
 
   const json = await res.json();
-  if (!json.success) return alert(json.error);
+
+  if (!json.success) {
+    alert(json.error || "Login failed");
+    return;
+  }
 
   localStorage.setItem(TOKEN_KEY, json.token);
   showContent();
@@ -47,40 +54,25 @@ function logout() {
 }
 
 async function loadPendingVouchers() {
-  const token = localStorage.getItem(TOKEN_KEY);
-
   const res = await fetch(`${API_BASE}/pending-vouchers`, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` }
   });
 
   const json = await res.json();
-  const container = document.getElementById("voucherList");
-  container.innerHTML = "";
-
-  if (!json.data?.length) {
-    container.innerHTML = "<p>No pending vouchers</p>";
-    return;
-  }
+  const el = document.getElementById("voucherList");
+  el.innerHTML = "";
 
   json.data.forEach(v => {
     const hasMeter = v.meterNumber && v.meterSupplier;
-
-    const card = document.createElement("div");
-    card.className = "card";
-
-    card.innerHTML = `
-      <p><b>Phone:</b> ${v.phone}</p>
-      <p><b>Amount:</b> R${v.voucherAmount}</p>
-      <p><b>Meter:</b>
-        ${hasMeter
-          ? `<span class="badge success">${v.meterNumber} (${v.meterSupplier})</span>`
-          : `<span class="badge danger">MISSING</span>`}
-      </p>
-      <button ${hasMeter ? "" : "disabled"} onclick="approve('${v.phone}')">Approve</button>
-      <button onclick="reject('${v.phone}')">Reject</button>
+    el.innerHTML += `
+      <div class="card">
+        <p>${v.phone}</p>
+        <p>R${v.voucherAmount}</p>
+        <p>${hasMeter ? "✅ Meter OK" : "❌ Meter Missing"}</p>
+        <button ${hasMeter ? "" : "disabled"} onclick="approve('${v.phone}')">Approve</button>
+        <button onclick="reject('${v.phone}')">Reject</button>
+      </div>
     `;
-
-    container.appendChild(card);
   });
 }
 
@@ -93,12 +85,11 @@ async function reject(phone) {
 }
 
 async function action(endpoint, phone) {
-  const token = localStorage.getItem(TOKEN_KEY);
   await fetch(`${API_BASE}/${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
     },
     body: JSON.stringify({ phone })
   });
@@ -106,6 +97,13 @@ async function action(endpoint, phone) {
 }
 
 async function loadAuditLogs() {
+  const res = await fetch(`${API_BASE}/audit-logs`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` }
+  });
+  const json = await res.json();
+  const el = document.getElementById("auditLog");
+  el.innerHTML = json.data.map(l => `<p>${l.action} - ${l.phone}</p>`).join("");
+}async function loadAuditLogs() {
   const token = localStorage.getItem(TOKEN_KEY);
   const res = await fetch(`${API_BASE}/audit-logs`, {
     headers: { Authorization: `Bearer ${token}` }
