@@ -13,61 +13,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/**
- * =========================
- * ADMIN UI (STATIC)
- * =========================
- * This MUST come before /admin API routes
- */
-app.use(
-  "/admin",
-  express.static(path.join(__dirname, "admin-ui"))
-);
-
-/**
- * =========================
- * AUTH ROUTES
- * =========================
- */
+// API routes
+app.use("/webhook", webhookRoutes);
 app.use("/admin-auth", adminAuthRoutes);
-
-/**
- * =========================
- * ADMIN API ROUTES
- * =========================
- */
 app.use("/admin", adminRoutes);
 
-/**
- * =========================
- * WEBHOOK ROUTES
- * =========================
- */
-app.use("/webhook", webhookRoutes);
+// Admin UI (STATIC)
+app.use("/admin", express.static(path.join(__dirname, "admin-ui")));
 
-/**
- * =========================
- * HEALTH CHECK
- * =========================
- */
+// Health check
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Paylite backend running" });
 });
 
-/**
- * =========================
- * 404 HANDLER
- * =========================
- */
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, error: "Route not found" });
 });
 
-/**
- * =========================
- * START SERVER
- * =========================
- */
+// Start server
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Paylite server running on port ${PORT}`);
