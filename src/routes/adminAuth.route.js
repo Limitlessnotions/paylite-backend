@@ -1,77 +1,38 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+
 const router = express.Router();
 
-const { db } = require("../config/firebase");
+// TEMP in-memory admin lookup (until unified admin service)
+const admins = [
+  {
+    email: "owner@paylite.com",
+    passwordHash: "$2a$12$Bl.oaRC51VH4OOD3OP1BGO.fBWvD5zTZFPYDjrEdNYzvcit1V3qc5q", // Admin123
+    role: "super_admin"
+  }
+];
 
 router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Email and password required"
-      });
-    }
-
-    const snapshot = await db
-      .collection("admins")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid credentials"
-      });
-    }
-
-    const admin = snapshot.docs[0].data();
-
-    if (!admin.isActive) {
-      return res.status(403).json({
-        success: false,
-        error: "Admin disabled"
-      });
-    }
-
-    // ✅ THIS IS THE IMPORTANT PART
-    const passwordMatch = await bcrypt.compare(
-      password,
-      admin.passwordHash
-    );
-
-    if (!passwordMatch) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid credentials"
-      });
-    }
-
-    const token = jwt.sign(
-      {
-        adminId: snapshot.docs[0].id,
-        email: admin.email,
-        role: admin.role
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "12h" }
-    );
-
-    return res.json({
-      success: true,
-      token
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({
-      success: false,
-      error: "Server error"
-    });
+  const admin = admins.find(a => a.email === email);
+  if (!admin) {
+    return res.status(401).json({ success: false, error: "Invalid credentials" });
   }
+
+  const match = await bcrypt.compare(password, admin.passwordHash);
+  if (!match) {
+    return res.status(401).json({ success: false, error: "Invalid credentials" });
+  }
+
+  const token = jwt.sign(
+    { email: admin.email, role: admin.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "12h" }
+  );
+
+  res.json({ success: true, token });
 });
 
 module.exports = router;
