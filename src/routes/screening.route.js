@@ -1,3 +1,4 @@
+// src/routes/screening.route.js
 const express = require("express");
 const router = express.Router();
 const { submitScreening } = require("../controllers/screeningController");
