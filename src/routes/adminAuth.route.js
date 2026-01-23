@@ -12,7 +12,7 @@ const admins = [
   {
     email: "owner@paylite.com",
     passwordHash:
-      "$2a$12$Bl.oaRC51VH4OOD3OP1BGO.fBWvD5zTZFPYDjrEdNYzvcit1V3qc5q",
+      "$2a$10$Iprl5zWyOiv9ujoBxM6qPudkx/GeJXL.tT5KrQpQ1eW2S3318MbWO",
     role: "super_admin",
     isActive: true
   }
