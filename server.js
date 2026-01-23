@@ -39,3 +39,10 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Paylite server running on port ${PORT}`);
 });
+
+const path = require("path");
+
+app.use(
+  "/screening",
+  express.static(path.join(__dirname, "screening-ui"))
+);
