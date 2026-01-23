@@ -1,109 +1,77 @@
-const { db } = require("../services/firebase");
+const { db } = require("../config/firebase");
 
-// =========================
-// GET PENDING VOUCHERS
-// =========================
-async function getPendingVouchers(req, res) {
-  try {
-    const snapshot = await db
-      .collection("users")
-      .where("voucherStatus", "==", "pending")
-      .get();
-
-    const results = [];
-
-    snapshot.forEach(doc => {
-      const data = doc.data();
-
-      results.push({
-        phone: doc.id,
-        meterNumber: data.meterNumber || null,
-        meterSupplier: data.meterSupplier || null,
-        voucherAmount: data.voucherAmount,
-        repaymentOption: data.repaymentOption,
-        requestedAt: data.voucherRequestedAt || null
-      });
-    });
-
-    return res.json({ success: true, data: results });
-  } catch (err) {
-    console.error("getPendingVouchers error:", err);
-    return res.status(500).json({ success: false, error: "Server error" });
-  }
-}
-
-// =========================
-// APPROVE VOUCHER
-// =========================
-async function approveVoucher(req, res) {
+// ==============================
+// APPROVE SCREENING
+// ==============================
+async function approveScreening(req, res) {
   try {
     const { phone } = req.body;
     if (!phone) {
       return res.status(400).json({ success: false, error: "Phone required" });
     }
 
-    await db.collection("users").doc(phone).update({
-      voucherStatus: "approved",
-      hasActiveVoucher: true,
-      approvedAt: new Date()
+    const ref = db.collection("screenings").doc(phone);
+
+    await ref.set(
+      {
+        status: "approved",
+        reviewedAt: new Date(),
+        reviewedBy: req.admin.email
+      },
+      { merge: true }
+    );
+
+    await db.collection("audit_logs").add({
+      action: "SCREENING_APPROVED",
+      phone,
+      admin: req.admin.email,
+      timestamp: new Date()
     });
 
-    return res.json({ success: true });
+    res.json({ success: true });
   } catch (err) {
-    console.error("approveVoucher error:", err);
-    return res.status(500).json({ success: false, error: "Server error" });
+    console.error("Approve screening error:", err);
+    res.status(500).json({ success: false, error: "Approval failed" });
   }
 }
 
-// =========================
-// REJECT VOUCHER
-// =========================
-async function rejectVoucher(req, res) {
+// ==============================
+// REJECT SCREENING
+// ==============================
+async function rejectScreening(req, res) {
   try {
     const { phone } = req.body;
     if (!phone) {
       return res.status(400).json({ success: false, error: "Phone required" });
     }
 
-    await db.collection("users").doc(phone).update({
-      voucherStatus: "rejected",
-      rejectedAt: new Date()
+    const ref = db.collection("screenings").doc(phone);
+
+    await ref.set(
+      {
+        status: "rejected",
+        reviewedAt: new Date(),
+        reviewedBy: req.admin.email
+      },
+      { merge: true }
+    );
+
+    await db.collection("audit_logs").add({
+      action: "SCREENING_REJECTED",
+      phone,
+      admin: req.admin.email,
+      timestamp: new Date()
     });
 
-    return res.json({ success: true });
+    res.json({ success: true });
   } catch (err) {
-    console.error("rejectVoucher error:", err);
-    return res.status(500).json({ success: false, error: "Server error" });
+    console.error("Reject screening error:", err);
+    res.status(500).json({ success: false, error: "Rejection failed" });
   }
 }
 
-// =========================
-// GET AUDIT LOGS
-// =========================
-async function getAuditLogs(req, res) {
-  try {
-    const snapshot = await db
-      .collection("audit_logs")
-      .orderBy("timestamp", "desc")
-      .limit(50)
-      .get();
-
-    const logs = [];
-    snapshot.forEach(doc => logs.push(doc.data()));
-
-    return res.json({ success: true, data: logs });
-  } catch (err) {
-    console.error("getAuditLogs error:", err);
-    return res.status(500).json({ success: false, error: "Server error" });
-  }
-}
-
-// =========================
-// EXPORTS (THIS IS CRITICAL)
-// =========================
 module.exports = {
-  getPendingVouchers,
-  approveVoucher,
-  rejectVoucher,
-  getAuditLogs
+  // keep existing exports
+  approveScreening,
+  rejectScreening
 };
