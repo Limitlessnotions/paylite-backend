@@ -2,19 +2,20 @@ const API_BASE = "/admin-api";
 const TOKEN_KEY = "paylite_admin_token";
 
 document.addEventListener("DOMContentLoaded", () => {
-  try {
-    const token = localStorage.getItem(TOKEN_KEY);
-    token ? showContent() : showLogin();
-    if (token) {
-      loadPendingVouchers();
-      loadAuditLogs();
-    }
-  } catch (e) {
-    console.error("Init error:", e);
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  if (!token) {
     showLogin();
+    return;
   }
+
+  showContent();
+  loadPendingVouchers();
+  loadAuditLogs();
+  loadScreenings(); // ✅ M3-2
 });
 
+// ===== UI STATE =====
 function showLogin() {
   document.getElementById("auth").style.display = "block";
   document.getElementById("content").style.display = "none";
@@ -25,6 +26,7 @@ function showContent() {
   document.getElementById("content").style.display = "block";
 }
 
+// ===== AUTH =====
 async function login() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -46,17 +48,21 @@ async function login() {
   showContent();
   loadPendingVouchers();
   loadAuditLogs();
+  loadScreenings();
 }
 
 function logout() {
   localStorage.removeItem(TOKEN_KEY);
-  showLogin();
+  location.reload();
 }
 
+// ===== VOUCHERS =====
 async function loadPendingVouchers() {
   const res = await fetch(`${API_BASE}/pending-vouchers`, {
     headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` }
   });
+
+  if (res.status === 401) return logout();
 
   const json = await res.json();
   const el = document.getElementById("voucherList");
@@ -93,21 +99,17 @@ async function action(endpoint, phone) {
     },
     body: JSON.stringify({ phone })
   });
+
   loadPendingVouchers();
 }
 
+// ===== AUDIT LOGS =====
 async function loadAuditLogs() {
   const res = await fetch(`${API_BASE}/audit-logs`, {
     headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` }
   });
-  const json = await res.json();
-  const el = document.getElementById("auditLog");
-  el.innerHTML = json.data.map(l => `<p>${l.action} - ${l.phone}</p>`).join("");
-}async function loadAuditLogs() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const res = await fetch(`${API_BASE}/audit-logs`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+
+  if (res.status === 401) return logout();
 
   const json = await res.json();
   const container = document.getElementById("auditLog");
@@ -116,6 +118,44 @@ async function loadAuditLogs() {
   json.data.forEach(log => {
     container.innerHTML += `
       <p>[${new Date(log.timestamp).toLocaleString()}] ${log.action} — ${log.phone}</p>
+    `;
+  });
+}
+
+// ===== SCREENINGS (M3-2) =====
+async function loadScreenings() {
+  const res = await fetch(`${API_BASE}/screenings`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+    }
+  });
+
+  if (res.status === 401) return logout();
+
+  const json = await res.json();
+  const container = document.getElementById("screeningList");
+  container.innerHTML = "";
+
+  if (!json.success || !json.data.length) {
+    container.innerHTML = "<p>No screening records found.</p>";
+    return;
+  }
+
+  json.data.forEach(s => {
+    container.innerHTML += `
+      <div class="card">
+        <p><strong>Name:</strong> ${s.fullName}</p>
+        <p><strong>Phone:</strong> ${s.phone}</p>
+        <p><strong>ID:</strong> ${s.idNumber}</p>
+        <p><strong>Employed:</strong> ${s.employed ? "Yes" : "No"}</p>
+        <p><strong>Income:</strong> ${s.monthlyIncome}</p>
+        <p><strong>Status:</strong> ${s.status}</p>
+        <p><strong>Date:</strong> ${
+          s.createdAt?.toDate
+            ? new Date(s.createdAt.toDate()).toLocaleString()
+            : "—"
+        }</p>
+      </div>
     `;
   });
 }
