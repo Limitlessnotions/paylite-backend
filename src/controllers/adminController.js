@@ -1,77 +1,116 @@
-const { db } = require("../config/firebase");
+const { db } = require("../services/firebase");
 
-// ==============================
-// APPROVE SCREENING
-// ==============================
-async function approveScreening(req, res) {
+// ===== Pending vouchers =====
+exports.getPendingVouchers = async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone required" });
+    const snapshot = await db
+      .collection("vouchers")
+      .where("status", "==", "pending")
+      .get();
+
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: "Failed to fetch vouchers" });
+  }
+};
+
+// ===== Approve voucher =====
+exports.approveVoucher = async (req, res) => {
+  const { phone } = req.body;
+
+  try {
+    const snap = await db
+      .collection("vouchers")
+      .where("phone", "==", phone)
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      return res.status(404).json({ success: false });
     }
 
-    const ref = db.collection("screenings").doc(phone);
+    await snap.docs[0].ref.update({ status: "approved" });
 
-    await ref.set(
-      {
-        status: "approved",
-        reviewedAt: new Date(),
-        reviewedBy: req.admin.email
-      },
-      { merge: true }
-    );
-
-    await db.collection("audit_logs").add({
-      action: "SCREENING_APPROVED",
+    await db.collection("auditLogs").add({
       phone,
-      admin: req.admin.email,
+      action: "approved",
       timestamp: new Date()
     });
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Approve screening error:", err);
-    res.status(500).json({ success: false, error: "Approval failed" });
+    res.status(500).json({ success: false });
   }
-}
+};
 
-// ==============================
-// REJECT SCREENING
-// ==============================
-async function rejectScreening(req, res) {
+// ===== Reject voucher =====
+exports.rejectVoucher = async (req, res) => {
+  const { phone } = req.body;
+
   try {
-    const { phone } = req.body;
-    if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone required" });
+    const snap = await db
+      .collection("vouchers")
+      .where("phone", "==", phone)
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      return res.status(404).json({ success: false });
     }
 
-    const ref = db.collection("screenings").doc(phone);
+    await snap.docs[0].ref.update({ status: "rejected" });
 
-    await ref.set(
-      {
-        status: "rejected",
-        reviewedAt: new Date(),
-        reviewedBy: req.admin.email
-      },
-      { merge: true }
-    );
-
-    await db.collection("audit_logs").add({
-      action: "SCREENING_REJECTED",
+    await db.collection("auditLogs").add({
       phone,
-      admin: req.admin.email,
+      action: "rejected",
       timestamp: new Date()
     });
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Reject screening error:", err);
-    res.status(500).json({ success: false, error: "Rejection failed" });
+    res.status(500).json({ success: false });
   }
-}
+};
 
-module.exports = {
-  // keep existing exports
-  approveScreening,
-  rejectScreening
+// ===== Audit logs =====
+exports.getAuditLogs = async (req, res) => {
+  try {
+    const snapshot = await db
+      .collection("auditLogs")
+      .orderBy("timestamp", "desc")
+      .limit(50)
+      .get();
+
+    const data = snapshot.docs.map(d => d.data());
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+};
+
+// ===== M3-2: Get screening submissions =====
+exports.getScreenings = async (req, res) => {
+  try {
+    const snapshot = await db
+      .collection("screenings")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
 };
