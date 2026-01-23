@@ -10,28 +10,20 @@ const screeningRoutes = require("./src/routes/screening.route");
 
 const app = express();
 
-/**
- * ======================
- * GLOBAL MIDDLEWARE
- * ======================
- */
 app.use(cors());
 app.use(express.json());
 
 /**
- * ======================
- * API ROUTES
- * ======================
+ * ========= API ROUTES =========
  */
-app.use("/webhook", webhookRoutes);          // WhatsApp → Backend
-app.use("/admin-auth", adminAuthRoutes);     // Admin login (JWT)
-app.use("/admin", adminRoutes);               // Admin dashboard APIs
-app.use("/screening", screeningRoutes);       // M3 Credit screening
+app.use("/webhook", webhookRoutes);
+app.use("/api/admin-auth", adminAuthRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/screening", screeningRoutes);
 
 /**
- * ======================
- * ADMIN UI (STATIC SITE)
- * ======================
+ * ========= ADMIN UI =========
+ * (THIS MUST NOT BE PROTECTED)
  */
 app.use(
   "/admin",
@@ -39,35 +31,20 @@ app.use(
 );
 
 /**
- * ======================
- * HEALTH CHECK
- * ======================
+ * ========= HEALTH =========
  */
 app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "Paylite backend running"
-  });
+  res.json({ success: true, message: "Paylite backend running" });
 });
 
 /**
- * ======================
- * 404 HANDLER
- * ======================
+ * ========= 404 =========
  */
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "Route not found"
-  });
+  res.status(404).json({ success: false, error: "Route not found" });
 });
 
-/**
- * ======================
- * START SERVER
- * ======================
- */
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`Paylite server running on port ${PORT}`);
+  console.log(`Paylite running on ${PORT}`);
 });
