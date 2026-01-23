@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
+const screeningRoutes = require("./src/routes/screening.route");
 const adminAuthRoutes = require("./src/routes/adminAuth.route");
 const adminApiRoutes = require("./src/routes/admin.route");
 const webhookRoutes = require("./src/routes/webhook");
@@ -24,6 +25,7 @@ app.use(
   express.static(path.join(__dirname, "admin-ui"))
 );
 
+app.use("/screening-api", screeningRoutes);
 // ===== Public Screening UI =====
 app.use(
   "/screening",
