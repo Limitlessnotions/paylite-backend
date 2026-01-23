@@ -1,3 +1,4 @@
+// src/controllers/screeningController.js
 const { db } = require("../services/firebase");
 
 /**
@@ -5,64 +6,68 @@ const { db } = require("../services/firebase");
  */
 async function submitScreening(req, res) {
   try {
-    const { fullName, idNumber, employed, income } = req.body;
-
-    // 1️⃣ Hard validation
-    if (!fullName || !idNumber || !employed || !income) {
-      return res.status(400).json({
-        success: false,
-        error: "All fields are required"
-      });
-    }
-
-    if (!/^\d{13}$/.test(idNumber)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid SA ID number"
-      });
-    }
-
-    // 2️⃣ Decision rules (FAST & CLEAR)
-    let decision = "rejected";
-    let reason = "Does not meet requirements";
-
-    if (employed === "yes" && Number(income) >= 1000) {
-      decision = "approved";
-      reason = "Meets basic income requirements";
-    }
-
-    // 3️⃣ Save screening result
-    const record = {
+    const {
+      phone,
       fullName,
       idNumber,
       employed,
-      income: Number(income),
-      decision,
-      reason,
-      createdAt: new Date()
-    };
+      monthlyIncome,
+      consent
+    } = req.body;
 
-    await db.collection("screenings").add(record);
-
-    // 4️⃣ Respond
-    if (decision === "approved") {
-      return res.json({
-        success: true,
-        decision,
-        message:
-          "You are pre-approved ✅ Please return to WhatsApp to continue."
+    // ===== Basic validation =====
+    if (
+      !phone ||
+      !fullName ||
+      !idNumber ||
+      employed === undefined ||
+      !monthlyIncome ||
+      consent !== true
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing or invalid fields"
       });
     }
 
+    // SA ID must be 13 digits
+    if (!/^\d{13}$/.test(idNumber)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid South African ID number"
+      });
+    }
+
+    // ===== Screening rules (VERY SIMPLE FOR NOW) =====
+    let status = "pending";
+
+    if (employed === true && Number(monthlyIncome) >= 3000) {
+      status = "approved";
+    }
+
+    if (employed === false || Number(monthlyIncome) < 3000) {
+      status = "declined";
+    }
+
+    const record = {
+      phone,
+      fullName,
+      idNumber,
+      employed,
+      monthlyIncome: Number(monthlyIncome),
+      consent,
+      status,
+      createdAt: new Date()
+    };
+
+    await db.collection("screenings").doc(phone).set(record);
+
     return res.json({
       success: true,
-      decision,
-      message:
-        "Unfortunately, you do not qualify at this time ❌"
+      status
     });
-
   } catch (err) {
-    console.error("Screening error:", err);
+    console.error("Screening submit error:", err);
     return res.status(500).json({
       success: false,
       error: "Internal server error"
@@ -70,4 +75,6 @@ async function submitScreening(req, res) {
   }
 }
 
-module.exports = { submitScreening };
+module.exports = {
+  submitScreening
+};
