@@ -1,0 +1,51 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #064e3b;
+  color: white;
+}
+
+.container {
+  width: 350px;
+  margin: 60px auto;
+  background: #065f46;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+h2 {
+  text-align: center;
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+}
+
+input, select, button {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  border: none;
+}
+
+button {
+  background: #16a34a;
+  color: white;
+  font-weight: bold;
+  margin-top: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #15803d;
+}
+
+.checkbox {
+  margin-top: 12px;
+}
+
+#result {
+  margin-top: 16px;
+  text-align: center;
+}
