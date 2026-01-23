@@ -18,10 +18,16 @@ app.use("/webhook", webhookRoutes);
 app.use("/admin-auth", adminAuthRoutes);
 app.use("/admin-api", adminApiRoutes);
 
-// ===== Admin UI (STATIC) =====
+// ===== Admin Dashboard UI =====
 app.use(
   "/dashboard",
   express.static(path.join(__dirname, "admin-ui"))
+);
+
+// ===== Public Screening UI =====
+app.use(
+  "/screening",
+  express.static(path.join(__dirname, "screening-ui"))
 );
 
 // ===== Root health check =====
@@ -39,10 +45,3 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Paylite server running on port ${PORT}`);
 });
-
-const path = require("path");
-
-app.use(
-  "/screening",
-  express.static(path.join(__dirname, "screening-ui"))
-);
