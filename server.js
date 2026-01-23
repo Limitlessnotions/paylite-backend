@@ -9,25 +9,26 @@ const adminAuthRoutes = require("./src/routes/adminAuth.route");
 
 const app = express();
 
-// ✅ MUST COME BEFORE ROUTES
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// APIs
 app.use("/webhook", webhookRoutes);
 app.use("/admin-auth", adminAuthRoutes);
-app.use("/admin", adminRoutes);
+app.use("/admin-api", adminRoutes);
 
-// Serve Admin UI (STATIC)
-app.use("/admin", express.static(path.join(__dirname, "admin-ui")));
+// Serve Admin UI (STATIC FILES)
+app.use(
+  "/admin",
+  express.static(path.join(__dirname, "admin-ui"))
+);
 
-// Health check
+// Health
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Paylite backend running" });
 });
 
-// 404 handler
+// 404
 app.use((req, res) => {
   res.status(404).json({ success: false, error: "Route not found" });
 });
