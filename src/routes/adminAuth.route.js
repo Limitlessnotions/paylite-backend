@@ -4,35 +4,76 @@ const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
-// TEMP in-memory admin lookup (until unified admin service)
+/**
+ * TEMPORARY IN-MEMORY ADMIN STORE
+ * (Later this will come from Firestore)
+ */
 const admins = [
   {
     email: "owner@paylite.com",
-    passwordHash: "$2a$12$Bl.oaRC51VH4OOD3OP1BGO.fBWvD5zTZFPYDjrEdNYzvcit1V3qc5q", // Admin123
-    role: "super_admin"
+    passwordHash:
+      "$2a$12$Bl.oaRC51VH4OOD3OP1BGO.fBWvD5zTZFPYDjrEdNYzvcit1V3qc5q",
+    role: "super_admin",
+    isActive: true
   }
 ];
 
+/**
+ * POST /admin-auth/login
+ * Admin login → returns JWT
+ */
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  const admin = admins.find(a => a.email === email);
-  if (!admin) {
-    return res.status(401).json({ success: false, error: "Invalid credentials" });
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Email and password required"
+      });
+    }
+
+    const admin = admins.find(a => a.email === email);
+
+    if (!admin || !admin.isActive) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials"
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(
+      password,
+      admin.passwordHash
+    );
+
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials"
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        email: admin.email,
+        role: admin.role
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    return res.json({
+      success: true,
+      token
+    });
+  } catch (err) {
+    console.error("Admin login error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
   }
-
-  const match = await bcrypt.compare(password, admin.passwordHash);
-  if (!match) {
-    return res.status(401).json({ success: false, error: "Invalid credentials" });
-  }
-
-  const token = jwt.sign(
-    { email: admin.email, role: admin.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "12h" }
-  );
-
-  res.json({ success: true, token });
 });
 
 module.exports = router;
