@@ -3,8 +3,7 @@ const router = express.Router();
 
 // IMPORTANT:
 // adminJwt exports the middleware function directly
-// NOT { requireAdmin }
-const requireAdmin = require("../middleware/adminJwt");
+const {requireAdmin} = require("../middleware/adminJwt");
 
 const {
   getPendingVouchers,
