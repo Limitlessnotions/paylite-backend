@@ -7,7 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (token) {
     loadPendingVouchers();
-    loadAuditLogs();
     loadScreenings();
   }
 });
@@ -33,12 +32,11 @@ async function login() {
   });
 
   const json = await res.json();
-  if (!json.success) return alert(json.error);
+  if (!json.success) return alert(json.error || "Login failed");
 
   localStorage.setItem(TOKEN_KEY, json.token);
   showContent();
   loadPendingVouchers();
-  loadAuditLogs();
   loadScreenings();
 }
 
@@ -56,13 +54,21 @@ async function loadPendingVouchers() {
   const el = document.getElementById("voucherList");
   el.innerHTML = "";
 
-  json.data.forEach(v => {
+  if (!json.data.length) {
+    el.innerHTML = "<p>No pending vouchers</p>";
+    return;
+  }
+
+  json.data.forEach(u => {
+    const hasMeter = u.meterNumber && u.meterSupplier;
+
     el.innerHTML += `
       <div class="card">
-        <p>${v.phone}</p>
-        <p>R${v.voucherAmount}</p>
-        <button onclick="approve('${v.phone}')">Approve</button>
-        <button onclick="reject('${v.phone}')">Reject</button>
+        <p>${u.phone}</p>
+        <p>R${u.voucherAmount}</p>
+        <p>${hasMeter ? "✅ Meter OK" : "❌ Meter Missing"}</p>
+        <button ${hasMeter ? "" : "disabled"} onclick="approve('${u.phone}')">Approve</button>
+        <button onclick="reject('${u.phone}')">Reject</button>
       </div>
     `;
   });
@@ -85,17 +91,8 @@ async function action(endpoint, phone) {
     },
     body: JSON.stringify({ phone })
   });
+
   loadPendingVouchers();
-}
-
-async function loadAuditLogs() {
-  const res = await fetch(`${API_BASE}/audit-logs`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` }
-  });
-
-  const json = await res.json();
-  document.getElementById("auditLog").innerHTML =
-    json.data.map(l => `<p>${l.action} - ${l.phone}</p>`).join("");
 }
 
 async function loadScreenings() {
@@ -108,17 +105,16 @@ async function loadScreenings() {
   el.innerHTML = "";
 
   if (!json.data.length) {
-    el.innerHTML = "<p>No screening records</p>";
+    el.innerHTML = "<p>No screenings found</p>";
     return;
   }
 
   json.data.forEach(s => {
     el.innerHTML += `
       <div class="card">
-        <p><b>${s.fullName}</b> (${s.phone})</p>
-        <p>ID: ${s.idNumber}</p>
-        <p>Income: ${s.monthlyIncome}</p>
+        <p><strong>${s.fullName}</strong> (${s.phone})</p>
         <p>Status: ${s.status}</p>
+        <p>Income: ${s.monthlyIncome}</p>
       </div>
     `;
   });
