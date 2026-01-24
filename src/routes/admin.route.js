@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const requireAdmin = require("../middleware/adminJwt");
 
 const {
@@ -10,7 +11,7 @@ const {
   getAuditLogs
 } = require("../controllers/adminController");
 
-// 🔐 Protect all admin routes
+// 🔐 PROTECT ALL ROUTES
 router.use(requireAdmin);
 
 router.get("/pending-vouchers", getPendingVouchers);
