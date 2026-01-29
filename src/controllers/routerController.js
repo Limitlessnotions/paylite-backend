@@ -1,9 +1,9 @@
 const { db } = require("../services/firebase");
-const { handleOnboarding } = require("./OnboardingController");
+const { handleOnboarding } = require("./onboardingController");
 const {
   requestVoucherAmount,
   confirmRepaymentOption
-} = require("./VoucherController");
+} = require("./voucherController");
 
 async function routeMessage(from, message) {
   const text = message.trim().toLowerCase();
@@ -12,22 +12,22 @@ async function routeMessage(from, message) {
   const snap = await userRef.get();
   const user = snap.exists ? snap.data() : null;
 
-  // 1️⃣ GLOBAL COMMANDS — ALWAYS FIRST
+  // 1️⃣ GLOBAL COMMANDS FIRST
   if (text === "menu" || text === "help" || text === "support") {
     return await handleOnboarding(from, message);
   }
 
-  // 2️⃣ USER NOT ONBOARDED → FORCE ONBOARDING
+  // 2️⃣ FORCE ONBOARDING IF NOT DONE
   if (!user || user.onboarded !== true) {
     return await handleOnboarding(from, message);
   }
 
-  // 3️⃣ USER CONFIRMING REPAYMENT OPTION
+  // 3️⃣ REPAYMENT CONFIRMATION
   if (user.pendingVoucher?.stage === "awaiting_confirmation") {
     return await confirmRepaymentOption(from, message);
   }
 
-  // 4️⃣ USER ENTERING AMOUNT (NUMBERS)
+  // 4️⃣ AMOUNT ENTRY
   if (!isNaN(parseInt(message))) {
     return await requestVoucherAmount(from, message);
   }
