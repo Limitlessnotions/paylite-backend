@@ -13,7 +13,6 @@ module.exports = {
         onboarded: false,
         balance: 0,
         blocked: false,
-        voucherStatus: null,
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -22,20 +21,11 @@ module.exports = {
 
     const user = snap.data();
 
-    /* =====================================================
-       🔴 HARD GLOBAL COMMANDS (ALWAYS OVERRIDE EVERYTHING)
-       ===================================================== */
+    // Normalize onboarded flag (CRITICAL FIX)
+    const isOnboarded =
+      user.onboarded === true || user.onboarded === "true";
 
-    if (text === "menu") {
-      return (
-        "Paylite Menu 📋\n\n" +
-        "• BUY – Request electricity\n" +
-        "• BALANCE – Check balance\n" +
-        "• REPAYMENT – View repayment\n" +
-        "• HELP – Support"
-      );
-    }
-
+    // 🔹 GLOBAL COMMANDS (always work)
     if (text === "help" || text === "support") {
       return (
         "Paylite Support 🧑‍💼\n\n" +
@@ -45,121 +35,85 @@ module.exports = {
       );
     }
 
-    /* =====================================================
-       🔒 BLOCKED USER CHECK
-       ===================================================== */
-
-    if (user.blocked) {
-      return "Your account is currently restricted. Please contact support.";
-    }
-
-    /* =====================================================
-       🟡 ONBOARDING FLOW (STATE MACHINE)
-       ===================================================== */
-
-    const step = user.onboardStep ?? 0;
-
-    if (!user.onboarded) {
-      if (step === 0) {
-        await userRef.update({ onboardStep: 1, updatedAt: new Date() });
-        return "Welcome to Paylite! 👋\n\nWhat is your full name?";
-      }
-
-      if (step === 1) {
-        await userRef.update({
-          fullName: message,
-          onboardStep: 2,
-          updatedAt: new Date()
-        });
-        return "Please enter your South African ID number:";
-      }
-
-      if (step === 2) {
-        await userRef.update({
-          idNumber: message,
-          onboardStep: 3,
-          updatedAt: new Date()
-        });
-        return "What is your physical address?";
-      }
-
-      if (step === 3) {
-        await userRef.update({
-          address: message,
-          onboardStep: 4,
-          updatedAt: new Date()
-        });
-        return "Please enter your electricity meter number:";
-      }
-
-      if (step === 4) {
-        // Meter validation
-        if (!/^\d{7,13}$/.test(message)) {
-          return "❌ Invalid meter number.\nMeter numbers must be 7–13 digits.";
-        }
-
-        await userRef.update({
-          meterNumber: message,
-          onboardStep: 5,
-          updatedAt: new Date()
-        });
-
-        return (
-          "Please review our Terms & Conditions:\n" +
-          "https://paylite.co.za/terms\n\n" +
-          "Reply YES to accept."
-        );
-      }
-
-      if (step === 5) {
-        if (text !== "yes") {
-          return "You must reply YES to continue.";
-        }
-
-        await userRef.update({
-          onboarded: true,
-          onboardStep: 99,
-          updatedAt: new Date()
-        });
-
-        return "✅ Onboarding complete!\n\nReply MENU to continue.";
-      }
-    }
-
-    /* =====================================================
-       🔵 POST-ONBOARDING COMMANDS
-       ===================================================== */
-
-    if (text === "buy") {
-      if (user.voucherStatus === "pending") {
-        return "⏳ Your voucher request is already under review.";
-      }
-
-      await userRef.update({
-        voucherStatus: "initiated",
-        updatedAt: new Date()
-      });
-
+    // 🔹 MENU (only if onboarded)
+    if (text === "menu" && isOnboarded) {
       return (
-        "Choose voucher amount:\n\n" +
-        "1️⃣ R100\n" +
-        "2️⃣ R200\n\n" +
-        "Reply with 1 or 2."
+        "Paylite Menu 📋\n\n" +
+        "• BUY – Request electricity\n" +
+        "• BALANCE – Check balance\n" +
+        "• REPAYMENT – View repayment\n" +
+        "• HELP – Support"
       );
     }
 
-    if (text === "balance") {
-      return `Your current balance is R${user.balance || 0}.`;
+    // 🔹 BLOCK MENU IF NOT ONBOARDED
+    if (text === "menu" && !isOnboarded) {
+      return "Please complete onboarding to continue.";
     }
 
-    if (text === "repayment") {
-      return "Your repayment details will appear here shortly.";
+    // 🔹 ONBOARDING FLOW
+    const step = user.onboardStep || 0;
+
+    if (step === 0) {
+      await userRef.update({ onboardStep: 1, updatedAt: new Date() });
+      return "Welcome to Paylite! What is your full name?";
     }
 
-    /* =====================================================
-       🔚 FALLBACK
-       ===================================================== */
+    if (step === 1) {
+      await userRef.update({
+        fullName: message,
+        onboardStep: 2,
+        updatedAt: new Date()
+      });
+      return "Please enter your South African ID number:";
+    }
 
-    return "Reply MENU to continue.";
+    if (step === 2) {
+      await userRef.update({
+        idNumber: message,
+        onboardStep: 3,
+        updatedAt: new Date()
+      });
+      return "What is your physical address?";
+    }
+
+    if (step === 3) {
+      await userRef.update({
+        address: message,
+        onboardStep: 4,
+        updatedAt: new Date()
+      });
+      return "Enter your electricity meter number:";
+    }
+
+    if (step === 4) {
+      await userRef.update({
+        meterNumber: message,
+        onboardStep: 5,
+        updatedAt: new Date()
+      });
+      return (
+        "Please review our Terms & Conditions:\n" +
+        "https://paylite.co.za/terms\n\n" +
+        "Reply YES to accept."
+      );
+    }
+
+    if (step === 5) {
+      if (text !== "yes") {
+        return "You must reply YES to continue.";
+      }
+
+      await userRef.update({
+        onboarded: true, // BOOLEAN
+        onboardStep: 99,
+        updatedAt: new Date()
+      });
+
+      return "Onboarding complete 🎉\nReply MENU to continue.";
+    }
+
+    // 🔹 FALLBACK
+    return "How can I help you today?\nReply REQUEST to request a voucher.";
   }
 };
