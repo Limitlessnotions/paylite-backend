@@ -42,6 +42,25 @@ async function routeMessage(from, message) {
 
   const user = snap.data();
 
+  // =============================
+  // VOUCHER APPROVAL DELIVERY
+  // (MUST COME BEFORE BLOCKED)
+  // =============================
+  if (user.voucherStatus === "approved") {
+    return (
+      "⚡ Your electricity voucher request has been approved!\n\n" +
+      "Your voucher token is being processed.\n\n" +
+      "Reply MENU to continue."
+    );
+  }
+
+  if (user.voucherStatus === "rejected") {
+    return (
+      "❌ Your electricity voucher request was not approved.\n\n" +
+      "Reply MENU to try again or contact support."
+    );
+  }
+
   // --------------------
   // BLOCKED USER
   // --------------------
