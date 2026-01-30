@@ -1,122 +1,64 @@
 const { db } = require("../services/firebase");
 
 /**
- * GET /admin-api/pending-vouchers
- * Fetch users with pending vouchers
- */
-exports.getPendingVouchers = async (req, res) => {
-  try {
-    const snapshot = await db
-      .collection("users")
-      .where("voucherStatus", "==", "pending")
-      .orderBy("voucherRequestedAt", "desc")
-      .get();
-
-    const data = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    res.json({ success: true, data });
-  } catch (err) {
-    console.error("Fetch pending vouchers error:", err);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch pending vouchers"
-    });
-  }
-};
-
-/**
- * POST /admin-api/approve-voucher
- */
-exports.approveVoucher = async (req, res) => {
-  try {
-    const { phone } = req.body;
-
-    const snapshot = await db
-      .collection("users")
-      .where("phone", "==", phone)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    const userRef = snapshot.docs[0].ref;
-
-    await userRef.update({
-      voucherStatus: "approved",
-      approvedAt: new Date(),
-      stage: "active"
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Approve voucher error:", err);
-    res.status(500).json({ success: false, error: "Approval failed" });
-  }
-};
-
-/**
- * POST /admin-api/reject-voucher
- */
-exports.rejectVoucher = async (req, res) => {
-  try {
-    const { phone } = req.body;
-
-    const snapshot = await db
-      .collection("users")
-      .where("phone", "==", phone)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    await snapshot.docs[0].ref.update({
-      voucherStatus: "rejected",
-      rejectedAt: new Date()
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Reject voucher error:", err);
-    res.status(500).json({ success: false, error: "Rejection failed" });
-  }
-};
-
-/**
  * GET /admin-api/screenings
  */
 exports.getScreenings = async (req, res) => {
   try {
-    const snapshot = await db
+    const snap = await db
       .collection("screenings")
       .orderBy("createdAt", "desc")
       .get();
 
-    const data = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    const data = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
     }));
 
     res.json({ success: true, data });
   } catch (err) {
-    console.error("Fetch screenings error:", err);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch screenings"
-    });
+    res.status(500).json({ success: false });
   }
 };
 
 /**
- * GET /admin-api/audit-logs
- * (Optional – keep if already implemented)
+ * POST /admin-api/screening-decision
  */
-exports.getAuditLogs = async (req, res) => {
-  res.json({ success: true, data: [] });
+exports.screeningDecision = async (req, res) => {
+  const { screeningId, decision } = req.body;
+
+  if (!["approved", "rejected"].includes(decision)) {
+    return res.status(400).json({ success: false });
+  }
+
+  try {
+    const screeningRef = db.collection("screenings").doc(screeningId);
+    const snap = await screeningRef.get();
+
+    if (!snap.exists) {
+      return res.status(404).json({ success: false });
+    }
+
+    const screening = snap.data();
+    const phone = screening.phone;
+
+    // Update screening
+    await screeningRef.update({
+      status: decision,
+      decidedAt: new Date()
+    });
+
+    // Update user
+    const userRef = db.collection("users").doc(phone);
+    await userRef.set({
+      creditApproved: decision === "approved",
+      blocked: decision !== "approved",
+      updatedAt: new Date()
+    }, { merge: true });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
 };
