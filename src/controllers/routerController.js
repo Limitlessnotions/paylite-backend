@@ -13,7 +13,7 @@ async function routeMessage(from, message) {
   const snap = await userRef.get();
 
   // --------------------
-  // GLOBAL COMMANDS
+  // GLOBAL COMMANDS (NO USER REQUIRED)
   // --------------------
   if (text === "help" || text === "support") {
     return (
@@ -23,6 +23,18 @@ async function routeMessage(from, message) {
     );
   }
 
+  // --------------------
+  // USER DOES NOT EXIST OR NOT ONBOARDED
+  // --------------------
+  if (!snap.exists || snap.data().onboarded !== true) {
+    return await handleOnboarding(from, message);
+  }
+
+  const user = snap.data();
+
+  // --------------------
+  // MENU (ONLY AFTER ONBOARDING)
+  // --------------------
   if (text === "menu") {
     return (
       "Paylite Menu 📋\n\n" +
@@ -33,18 +45,15 @@ async function routeMessage(from, message) {
     );
   }
 
-  // --------------------
-  // USER DOES NOT EXIST → ONBOARD
-  // --------------------
-  if (!snap.exists || snap.data().onboarded !== true) {
-    return await handleOnboarding(from, message);
+  // =============================
+  // COMPLIANCE GATE (POPIA + T&C)
+  // =============================
+  if (!user.popiaConsent || !user.termsAccepted) {
+    return "You must complete onboarding and accept our Terms & Conditions to continue.";
   }
-
-  const user = snap.data();
 
   // =============================
   // VOUCHER APPROVAL DELIVERY
-  // (MUST COME BEFORE BLOCKED)
   // =============================
   if (user.voucherStatus === "approved") {
     return (
@@ -62,7 +71,7 @@ async function routeMessage(from, message) {
   }
 
   // --------------------
-  // BLOCKED USER
+  // BLOCKED USER (DEBT)
   // --------------------
   if (user.blocked) {
     return "You currently have an unpaid balance. Please repay to continue.";
