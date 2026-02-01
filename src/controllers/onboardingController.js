@@ -1,87 +1,170 @@
 const { db } = require("../services/firebase");
 
-async function handleOnboarding(from, message) {
-  const text = message.trim();
+module.exports = {
+  handleOnboarding: async function (from, message) {
+    const text = message.trim().toLowerCase();
+    const userRef = db.collection("users").doc(from);
+    let snap = await userRef.get();
 
-  const userRef = db.collection("users").doc(from);
-  let snap = await userRef.get();
+    // =========================
+    // CREATE USER IF NEW
+    // =========================
+    if (!snap.exists) {
+      await userRef.set({
+        onboardStep: 0,
+        onboarded: false,
 
-  if (!snap.exists) {
-    await userRef.set({
-      phone: from,
-      onboardStep: 0,
-      onboarded: false,
-      blocked: false,
-      createdAt: new Date()
-    });
-    snap = await userRef.get();
-  }
+        // Compliance
+        popiaConsent: false,
+        termsAccepted: false,
 
-  const user = snap.data();
-  const step = user.onboardStep || 0;
+        // Account state
+        balance: 0,
+        blocked: false,
+        creditApproved: false,
 
-  if (step === 0) {
-    await userRef.update({ onboardStep: 1 });
-    return "Welcome to Paylite 👋\nWhat is your full name?";
-  }
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-  if (step === 1) {
-    await userRef.update({
-      fullName: text,
-      onboardStep: 2
-    });
-    return "Enter your South African ID number:";
-  }
-
-  if (step === 2) {
-    await userRef.update({
-      idNumber: text,
-      onboardStep: 3
-    });
-    return "Enter your physical address:";
-  }
-
-  if (step === 3) {
-    await userRef.update({
-      address: text,
-      onboardStep: 4
-    });
-    return "Enter your electricity meter number:";
-  }
-
-  if (step === 4) {
-    if (!/^\d{7,13}$/.test(text)) {
-      return "❌ Invalid meter number. Must be 7–13 digits.";
+      snap = await userRef.get();
     }
 
-    await userRef.update({
-      meterNumber: text,
-      onboardStep: 5
-    });
+    const user = snap.data();
+    const step = user.onboardStep || 0;
 
-    return (
-      "Please review our Terms & Conditions:\n" +
-      "https://paylite.co.za/terms\n\n" +
-      "Reply YES to accept."
-    );
-  }
-
-  if (step === 5) {
-    if (text.toLowerCase() !== "yes") {
-      return "You must reply YES to continue.";
+    // =========================
+    // GLOBAL COMMANDS (ALWAYS WORK)
+    // =========================
+    if (text === "help" || text === "support") {
+      return (
+        "Paylite Support 🧑‍💼\n\n" +
+        "• Reply MENU to see options\n" +
+        "• Reply AGENT for human support\n" +
+        "• Reply REPAYMENT for payment help"
+      );
     }
 
-    await userRef.update({
-      onboarded: true,
-      onboardStep: 99,
-      termsAccepted: true,
-      termsAcceptedAt: new Date()
-    });
+    if (text === "menu" && user.onboarded) {
+      return (
+        "Paylite Menu 📋\n\n" +
+        "• BUY – Request electricity\n" +
+        "• BALANCE – Check balance\n" +
+        "• REPAYMENT – View repayment\n" +
+        "• HELP – Support"
+      );
+    }
 
-    return "✅ Onboarding complete!\nReply MENU to continue.";
+    // =========================
+    // ONBOARDING FLOW
+    // =========================
+
+    // STEP 0 — Ask name
+    if (step === 0) {
+      await userRef.update({
+        onboardStep: 1,
+        updatedAt: new Date()
+      });
+
+      return "Welcome to Paylite! What is your full name?";
+    }
+
+    // STEP 1 — Save name
+    if (step === 1) {
+      await userRef.update({
+        fullName: message.trim(),
+        onboardStep: 2,
+        updatedAt: new Date()
+      });
+
+      return "Please enter your South African ID number:";
+    }
+
+    // STEP 2 — Save ID
+    if (step === 2) {
+      await userRef.update({
+        idNumber: message.trim(),
+        onboardStep: 3,
+        updatedAt: new Date()
+      });
+
+      return "What is your physical address?";
+    }
+
+    // STEP 3 — Save address
+    if (step === 3) {
+      await userRef.update({
+        address: message.trim(),
+        onboardStep: 4,
+        updatedAt: new Date()
+      });
+
+      return "Please enter your electricity meter number:";
+    }
+
+    // STEP 4 — Save meter number
+    if (step === 4) {
+      await userRef.update({
+        meterNumber: message.trim(),
+        onboardStep: 5,
+        updatedAt: new Date()
+      });
+
+      return (
+        "POPIA Consent 📄\n\n" +
+        "Paylite will collect and process your personal data " +
+        "in line with South Africa’s POPIA.\n\n" +
+        "Reply YES to give consent."
+      );
+    }
+
+    // STEP 5 — POPIA CONSENT
+    if (step === 5) {
+      if (text !== "yes") {
+        return "You must reply YES to provide POPIA consent.";
+      }
+
+      await userRef.update({
+        popiaConsent: true,
+        popiaConsentAt: new Date(),
+        onboardStep: 6,
+        updatedAt: new Date()
+      });
+
+      return (
+        "Terms & Conditions 📜\n\n" +
+        "Please review our Terms & Conditions:\n" +
+        "https://paylite.co.za/terms\n\n" +
+        "Reply YES to accept."
+      );
+    }
+
+    // STEP 6 — TERMS & CONDITIONS
+    if (step === 6) {
+      if (text !== "yes") {
+        return "You must reply YES to accept the Terms & Conditions.";
+      }
+
+      await userRef.update({
+        termsAccepted: true,
+        termsAcceptedAt: new Date(),
+        termsVersion: "2025-01-13",
+
+        onboarded: true,
+        onboardStep: 99,
+        updatedAt: new Date()
+      });
+
+      return (
+        "Onboarding complete 🎉\n\n" +
+        "You can now request electricity on credit.\n\n" +
+        "Reply MENU to continue."
+      );
+    }
+
+    // =========================
+    // FALLBACK
+    // =========================
+    return "Reply MENU to continue.";
   }
-
-  return "Reply MENU to continue.";
-}
-
-module.exports = { handleOnboarding };
+};
