@@ -17,6 +17,7 @@ exports.getScreenings = async (req, res) => {
 
     res.json({ success: true, data });
   } catch (err) {
+    console.error("Fetch screenings error:", err);
     res.status(500).json({ success: false });
   }
 };
@@ -42,23 +43,23 @@ exports.screeningDecision = async (req, res) => {
     const screening = snap.data();
     const phone = screening.phone;
 
-    // Update screening
+    // Update screening record
     await screeningRef.update({
       status: decision,
       decidedAt: new Date()
     });
 
-    // Update user
-    const userRef = db.collection("users").doc(phone);
-    await userRef.set({
+    // Update user record (WhatsApp enforcement reads this)
+    await db.collection("users").doc(phone).set({
       creditApproved: decision === "approved",
+      screeningStatus: decision,
       blocked: decision !== "approved",
       updatedAt: new Date()
     }, { merge: true });
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("Screening decision error:", err);
     res.status(500).json({ success: false });
   }
 };
