@@ -13,7 +13,7 @@ async function routeMessage(from, message) {
   const snap = await userRef.get();
 
   // --------------------
-  // GLOBAL COMMANDS (NO USER REQUIRED)
+  // GLOBAL COMMANDS
   // --------------------
   if (text === "help" || text === "support") {
     return (
@@ -24,7 +24,7 @@ async function routeMessage(from, message) {
   }
 
   // --------------------
-  // USER DOES NOT EXIST OR NOT ONBOARDED
+  // USER NOT ONBOARDED
   // --------------------
   if (!snap.exists || snap.data().onboarded !== true) {
     return await handleOnboarding(from, message);
@@ -33,7 +33,7 @@ async function routeMessage(from, message) {
   const user = snap.data();
 
   // --------------------
-  // MENU (ONLY AFTER ONBOARDING)
+  // MENU
   // --------------------
   if (text === "menu") {
     return (
@@ -45,33 +45,35 @@ async function routeMessage(from, message) {
     );
   }
 
-  // =============================
-  // COMPLIANCE GATE (POPIA + T&C)
-  // =============================
+  // --------------------
+  // COMPLIANCE CHECK
+  // --------------------
   if (!user.popiaConsent || !user.termsAccepted) {
-    return "You must complete onboarding and accept our Terms & Conditions to continue.";
+    return "You must accept our Terms & Conditions to continue.";
   }
 
-  // =============================
-  // VOUCHER APPROVAL DELIVERY
-  // =============================
-  if (user.voucherStatus === "approved") {
+  // --------------------
+  // CREDIT SCREENING ENFORCEMENT (M3 CORE)
+  // --------------------
+  if (user.creditApproved !== true) {
     return (
-      "⚡ Your electricity voucher request has been approved!\n\n" +
-      "Your voucher token is being processed.\n\n" +
-      "Reply MENU to continue."
-    );
-  }
-
-  if (user.voucherStatus === "rejected") {
-    return (
-      "❌ Your electricity voucher request was not approved.\n\n" +
-      "Reply MENU to try again or contact support."
+      "⛔ Your account is pending credit screening.\n\n" +
+      "We will notify you once your application is reviewed."
     );
   }
 
   // --------------------
-  // BLOCKED USER (DEBT)
+  // ADMIN DECISION FEEDBACK
+  // --------------------
+  if (user.screeningStatus === "rejected") {
+    return (
+      "❌ Your credit application was not approved.\n\n" +
+      "Reply HELP for support."
+    );
+  }
+
+  // --------------------
+  // BLOCKED DUE TO DEBT
   // --------------------
   if (user.blocked) {
     return "You currently have an unpaid balance. Please repay to continue.";
