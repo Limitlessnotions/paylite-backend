@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Paylite Screening</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Paylite Credit Screening</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-
   <div class="container">
     <h2>Paylite Credit Screening</h2>
 
@@ -15,33 +15,37 @@
       <input type="text" id="fullName" required />
 
       <label>South African ID Number</label>
-      <input type="text" id="idNumber" maxlength="13" required />
+      <input type="text" id="idNumber" required />
 
-      <label>Are you employed?</label>
-      <select id="employed" required>
-        <option value="">Select</option>
-        <option value="yes">Yes</option>
-        <option value="no">No</option>
-      </select>
+      <label>Current Employer</label>
+      <input
+        type="text"
+        id="currentEmployer"
+        placeholder="Enter employer name"
+      />
+
+      <label>
+        <input type="checkbox" id="pension" />
+        I receive a pension
+      </label>
 
       <label>Monthly Income</label>
       <select id="income" required>
         <option value="">Select</option>
-        <option value="300">R300 – R1,000</option>
-        <option value="1000">R1,000 – R3,000</option>
-        <option value="3000">R3,000 – R5,000</option>
+        <option value="3000">R3,000+</option>
         <option value="5000">R5,000+</option>
+        <option value="10000">R10,000+</option>
       </select>
 
-      <label class="checkbox">
-        <input type="checkbox" id="consent" />
+      <label>
+        <input type="checkbox" required />
         I confirm the above information is correct
       </label>
 
       <button type="submit">Submit Screening</button>
     </form>
 
-    <p id="result"></p>
+    <p id="message"></p>
   </div>
 
   <script src="app.js"></script>
