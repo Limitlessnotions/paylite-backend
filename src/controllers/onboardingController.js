@@ -2,113 +2,121 @@ const { db } = require("../services/firebase");
 
 module.exports = {
   handleOnboarding: async function (from, message) {
-    const text = message.trim().toLowerCase();
+    const text = message.trim();
     const userRef = db.collection("users").doc(from);
     let snap = await userRef.get();
 
+    // =========================
+    // CREATE USER IF NEW
+    // =========================
     if (!snap.exists) {
       await userRef.set({
         phone: from,
         onboardStep: 0,
         onboarded: false,
+
+        // Consent handled later (voucher time)
         popiaConsent: false,
         termsAccepted: false,
-        screeningStatus: "pending",
+        awaitingConsent: false,
+
+        // Screening
+        screeningStatus: "not_started",
         creditApproved: false,
-        blocked: true,
+
+        // Voucher state
+        blocked: false,
+
         createdAt: new Date(),
         updatedAt: new Date()
       });
+
       snap = await userRef.get();
     }
 
     const user = snap.data();
     const step = user.onboardStep || 0;
 
-    // STEP 0 — POPIA CONSENT
+    // =========================
+    // STEP 0 — INTRO
+    // =========================
     if (step === 0) {
-      await userRef.update({ onboardStep: 1 });
+      await userRef.update({
+        onboardStep: 1,
+        updatedAt: new Date()
+      });
+
       return (
-        "Welcome to Paylite.\n\n" +
-        "We collect and process your personal information in accordance with POPIA.\n\n" +
-        "Reply YES to consent and continue."
+        "Welcome to Paylite ⚡\n\n" +
+        "Let’s get you registered.\n\n" +
+        "What is your full name?"
       );
     }
 
+    // =========================
+    // STEP 1 — FULL NAME
+    // =========================
     if (step === 1) {
-      if (text !== "yes") {
-        return "You must consent to POPIA to continue. Reply YES.";
-      }
       await userRef.update({
-        popiaConsent: true,
-        onboardStep: 2
+        fullName: text,
+        onboardStep: 2,
+        updatedAt: new Date()
       });
-      return "Please enter your full name:";
-    }
 
-    // STEP 2 — NAME
-    if (step === 2) {
-      await userRef.update({
-        fullName: message,
-        onboardStep: 3
-      });
       return "Please enter your South African ID number:";
     }
 
-    // STEP 3 — ID
-    if (step === 3) {
+    // =========================
+    // STEP 2 — ID NUMBER
+    // =========================
+    if (step === 2) {
       await userRef.update({
-        idNumber: message,
-        onboardStep: 4
+        idNumber: text,
+        onboardStep: 3,
+        updatedAt: new Date()
       });
+
       return "Please enter your physical address:";
     }
 
-    // STEP 4 — ADDRESS
+    // =========================
+    // STEP 3 — ADDRESS
+    // =========================
+    if (step === 3) {
+      await userRef.update({
+        address: text,
+        onboardStep: 4,
+        updatedAt: new Date()
+      });
+
+      return "Please enter your electricity meter number:";
+    }
+
+    // =========================
+    // STEP 4 — METER NUMBER
+    // =========================
     if (step === 4) {
       await userRef.update({
-        address: message,
-        onboardStep: 5
-      });
-      return "Enter your electricity meter number:";
-    }
-
-    // STEP 5 — METER
-    if (step === 5) {
-      await userRef.update({
-        meterNumber: message,
-        onboardStep: 6
-      });
-      return (
-        "Please review our Terms & Conditions:\n" +
-        "https://paylite.co.za/terms\n\n" +
-        "Reply YES to accept."
-      );
-    }
-
-    // STEP 6 — T&C
-    if (step === 6) {
-      if (text !== "yes") {
-        return "You must accept the Terms & Conditions to continue. Reply YES.";
-      }
-
-      await userRef.update({
-        termsAccepted: true,
-        onboardStep: 7
+        meterNumber: text,
+        onboardStep: 5,
+        updatedAt: new Date()
       });
 
       return (
-        "Screening Step (Required)\n\n" +
+        "Screening step (required)\n\n" +
         "What is your current employer?\n\n" +
         "⚠️ If unemployed or not receiving a pension, reply NONE."
       );
     }
 
-    // STEP 7 — EMPLOYER (SCREENING DECISION)
-    if (step === 7) {
-      const employer = message.trim();
+    // =========================
+    // STEP 5 — EMPLOYER (SCREENING)
+    // =========================
+    if (step === 5) {
+      const employer = text.toLowerCase();
 
-      if (employer.toLowerCase() === "none") {
+      // ❌ Auto-disqualify
+      if (employer === "none") {
         await userRef.update({
           screeningStatus: "rejected",
           creditApproved: false,
@@ -124,10 +132,10 @@ module.exports = {
         );
       }
 
-      // Save screening record
+      // ✅ Save screening submission
       await db.collection("screenings").add({
         phone: from,
-        employer,
+        employer: text,
         status: "pending",
         createdAt: new Date()
       });
@@ -146,6 +154,9 @@ module.exports = {
       );
     }
 
+    // =========================
+    // DEFAULT
+    // =========================
     return "Please wait while your account is being reviewed.";
   }
 };
