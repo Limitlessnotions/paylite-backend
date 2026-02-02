@@ -3,18 +3,14 @@ const {
   requestVoucherAmount,
   confirmRepaymentOption
 } = require("./voucherController");
-
 const { db } = require("../services/firebase");
 
 async function routeMessage(from, message) {
   const text = message.trim().toLowerCase();
-
   const userRef = db.collection("users").doc(from);
   const snap = await userRef.get();
 
-  // --------------------
   // GLOBAL COMMANDS
-  // --------------------
   if (text === "help" || text === "support") {
     return (
       "Paylite Support 🧑‍💼\n\n" +
@@ -23,18 +19,6 @@ async function routeMessage(from, message) {
     );
   }
 
-  // --------------------
-  // USER NOT ONBOARDED
-  // --------------------
-  if (!snap.exists || snap.data().onboarded !== true) {
-    return await handleOnboarding(from, message);
-  }
-
-  const user = snap.data();
-
-  // --------------------
-  // MENU
-  // --------------------
   if (text === "menu") {
     return (
       "Paylite Menu 📋\n\n" +
@@ -45,45 +29,50 @@ async function routeMessage(from, message) {
     );
   }
 
-  // --------------------
-  // COMPLIANCE CHECK
-  // --------------------
-  if (!user.popiaConsent || !user.termsAccepted) {
-    return "You must accept our Terms & Conditions to continue.";
+  // USER NOT ONBOARDED
+  if (!snap.exists || snap.data().onboarded !== true) {
+    return await handleOnboarding(from, message);
   }
 
-  // --------------------
-  // CREDIT SCREENING ENFORCEMENT (M3 CORE)
-  // --------------------
-  if (user.creditApproved !== true) {
-    return (
-      "⛔ Your account is pending credit screening.\n\n" +
-      "We will notify you once your application is reviewed."
-    );
+  const user = snap.data();
+
+  // SCREENING ENFORCEMENT
+  if (user.screeningStatus === "pending") {
+    return "Your account is under screening. Please wait for approval.";
   }
 
-  // --------------------
-  // ADMIN DECISION FEEDBACK
-  // --------------------
   if (user.screeningStatus === "rejected") {
+    return "Your screening was not approved. You cannot use Paylite.";
+  }
+
+  if (!user.creditApproved) {
+    return "Your account is not approved for credit at this time.";
+  }
+
+  // VOUCHER STATUS DELIVERY
+  if (user.voucherStatus === "approved") {
     return (
-      "❌ Your credit application was not approved.\n\n" +
-      "Reply HELP for support."
+      "⚡ Your electricity voucher has been approved.\n\n" +
+      "Please wait while your token is processed.\n\n" +
+      "Reply MENU to continue."
     );
   }
 
-  // --------------------
-  // BLOCKED DUE TO DEBT
-  // --------------------
-  if (user.blocked) {
-    return "You currently have an unpaid balance. Please repay to continue.";
+  if (user.voucherStatus === "rejected") {
+    return (
+      "❌ Your voucher request was rejected.\n\n" +
+      "Reply MENU to try again or contact support."
+    );
   }
 
-  // --------------------
+  // BLOCKED (UNPAID)
+  if (user.blocked) {
+    return "You have an unpaid balance. Please repay before continuing.";
+  }
+
   // BUY FLOW
-  // --------------------
   if (text === "buy" || text === "request") {
-    return "Enter the amount of electricity you want (R20 – R2000):";
+    return "Enter the amount you want (R20 – R2000):";
   }
 
   if (user.pendingVoucher?.stage === "awaiting_confirmation") {
