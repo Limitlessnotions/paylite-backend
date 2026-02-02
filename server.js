@@ -18,6 +18,7 @@ app.use(express.json());
 app.use("/webhook", webhookRoutes);
 app.use("/admin-auth", adminAuthRoutes);
 app.use("/admin-api", adminApiRoutes);
+app.use("/screening-api", screeningRoutes);
 
 // ===== Admin Dashboard UI =====
 app.use(
@@ -25,11 +26,16 @@ app.use(
   express.static(path.join(__dirname, "admin-ui"))
 );
 
-app.use("/screening-api", screeningRoutes);
 // ===== Public Screening UI =====
 app.use(
   "/screening",
   express.static(path.join(__dirname, "screening-ui"))
+);
+
+// ===== Terms & Conditions UI =====
+app.use(
+  "/terms",
+  express.static(path.join(__dirname, "public"))
 );
 
 // ===== Root health check =====
