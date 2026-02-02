@@ -10,12 +10,14 @@ async function routeMessage(from, message) {
   const userRef = db.collection("users").doc(from);
   const snap = await userRef.get();
 
+  // =====================
   // GLOBAL COMMANDS
+  // =====================
   if (text === "help" || text === "support") {
     return (
       "Paylite Support 🧑‍💼\n\n" +
-      "• Reply MENU to see options\n" +
-      "• Reply AGENT for human support"
+      "• MENU – Options\n" +
+      "• AGENT – Human support"
     );
   }
 
@@ -29,16 +31,20 @@ async function routeMessage(from, message) {
     );
   }
 
-  // USER NOT ONBOARDED
+  // =====================
+  // ONBOARDING
+  // =====================
   if (!snap.exists || snap.data().onboarded !== true) {
     return await handleOnboarding(from, message);
   }
 
   const user = snap.data();
 
-  // SCREENING ENFORCEMENT
+  // =====================
+  // SCREENING ENFORCEMENT (M3)
+  // =====================
   if (user.screeningStatus === "pending") {
-    return "Your account is under screening. Please wait for approval.";
+    return "Your account is under review. You’ll be notified once approved.";
   }
 
   if (user.screeningStatus === "rejected") {
@@ -46,31 +52,58 @@ async function routeMessage(from, message) {
   }
 
   if (!user.creditApproved) {
-    return "Your account is not approved for credit at this time.";
+    return "Your account is not approved for credit yet.";
   }
 
-  // VOUCHER STATUS DELIVERY
-  if (user.voucherStatus === "approved") {
+  // =====================
+  // CONSENT GATE (ONLY FOR BUY)
+  // =====================
+  if ((text === "buy" || text === "request") &&
+      (!user.termsAccepted || !user.popiaConsent)) {
+
+    await userRef.set({
+      awaitingConsent: true,
+      updatedAt: new Date()
+    }, { merge: true });
+
     return (
-      "⚡ Your electricity voucher has been approved.\n\n" +
-      "Please wait while your token is processed.\n\n" +
-      "Reply MENU to continue."
+      "⚠️ Before requesting electricity, please review and accept our terms:\n\n" +
+      "🔗 Terms & Conditions:\nhttps://paylite.co.za/terms\n\n" +
+      "🔗 Privacy Policy:\nhttps://paylite.co.za/privacy\n\n" +
+      "After reviewing, return here and reply YES to continue."
     );
   }
 
-  if (user.voucherStatus === "rejected") {
+  // =====================
+  // CONSENT CONFIRMATION
+  // =====================
+  if (text === "yes" && user.awaitingConsent === true) {
+    await userRef.set({
+      termsAccepted: true,
+      popiaConsent: true,
+      awaitingConsent: false,
+      consentedAt: new Date(),
+      updatedAt: new Date()
+    }, { merge: true });
+
+    // TODO: send agreement PDF (WhatsApp / Email)
     return (
-      "❌ Your voucher request was rejected.\n\n" +
-      "Reply MENU to try again or contact support."
+      "✅ Consent recorded.\n\n" +
+      "Your loan agreement has been sent to you.\n\n" +
+      "Reply BUY to continue."
     );
   }
 
+  // =====================
   // BLOCKED (UNPAID)
+  // =====================
   if (user.blocked) {
-    return "You have an unpaid balance. Please repay before continuing.";
+    return "You have an unpaid balance. Please repay to continue.";
   }
 
+  // =====================
   // BUY FLOW
+  // =====================
   if (text === "buy" || text === "request") {
     return "Enter the amount you want (R20 – R2000):";
   }
