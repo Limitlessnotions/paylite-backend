@@ -35,7 +35,7 @@ app.use(
 // ===== Terms & Conditions UI =====
 app.use(
   "/terms",
-  express.static(path.join(__dirname, "public"))
+  express.static(path.join(__dirname, "terms-ui"))
 );
 
 // ===== Root health check =====
