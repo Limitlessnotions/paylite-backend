@@ -1,8 +1,8 @@
 const { db } = require("../services/firebase");
 
-/**
- * GET /admin-api/screenings
- */
+// ===============================
+// GET ALL SCREENINGS
+// ===============================
 exports.getScreenings = async (req, res) => {
   try {
     const snap = await db
@@ -10,25 +10,25 @@ exports.getScreenings = async (req, res) => {
       .orderBy("createdAt", "desc")
       .get();
 
-    const data = snap.docs.map(d => ({
-      id: d.id,
-      ...d.data()
+    const data = snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
     }));
 
     res.json({ success: true, data });
   } catch (err) {
-    console.error("Fetch screenings error:", err);
+    console.error("Get screenings error:", err);
     res.status(500).json({ success: false });
   }
 };
 
-/**
- * POST /admin-api/screening-decision
- */
+// ===============================
+// APPROVE / REJECT SCREENING
+// ===============================
 exports.screeningDecision = async (req, res) => {
   const { screeningId, decision } = req.body;
 
-  if (!["approved", "rejected"].includes(decision)) {
+  if (!screeningId || !["approved", "rejected"].includes(decision)) {
     return res.status(400).json({ success: false });
   }
 
@@ -49,10 +49,10 @@ exports.screeningDecision = async (req, res) => {
       decidedAt: new Date()
     });
 
-    // Update user record (WhatsApp enforcement reads this)
+    // Update user (THIS drives WhatsApp)
     await db.collection("users").doc(phone).set({
-      creditApproved: decision === "approved",
       screeningStatus: decision,
+      creditApproved: decision === "approved",
       blocked: decision !== "approved",
       updatedAt: new Date()
     }, { merge: true });
