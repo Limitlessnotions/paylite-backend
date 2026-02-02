@@ -6,165 +6,146 @@ module.exports = {
     const userRef = db.collection("users").doc(from);
     let snap = await userRef.get();
 
-    // =========================
-    // CREATE USER IF NEW
-    // =========================
     if (!snap.exists) {
       await userRef.set({
+        phone: from,
         onboardStep: 0,
         onboarded: false,
-
-        // Compliance
         popiaConsent: false,
         termsAccepted: false,
-
-        // Account state
-        balance: 0,
-        blocked: false,
+        screeningStatus: "pending",
         creditApproved: false,
-
+        blocked: true,
         createdAt: new Date(),
         updatedAt: new Date()
       });
-
       snap = await userRef.get();
     }
 
     const user = snap.data();
     const step = user.onboardStep || 0;
 
-    // =========================
-    // GLOBAL COMMANDS (ALWAYS WORK)
-    // =========================
-    if (text === "help" || text === "support") {
-      return (
-        "Paylite Support 🧑‍💼\n\n" +
-        "• Reply MENU to see options\n" +
-        "• Reply AGENT for human support\n" +
-        "• Reply REPAYMENT for payment help"
-      );
-    }
-
-    if (text === "menu" && user.onboarded) {
-      return (
-        "Paylite Menu 📋\n\n" +
-        "• BUY – Request electricity\n" +
-        "• BALANCE – Check balance\n" +
-        "• REPAYMENT – View repayment\n" +
-        "• HELP – Support"
-      );
-    }
-
-    // =========================
-    // ONBOARDING FLOW
-    // =========================
-
-    // STEP 0 — Ask name
+    // STEP 0 — POPIA CONSENT
     if (step === 0) {
-      await userRef.update({
-        onboardStep: 1,
-        updatedAt: new Date()
-      });
-
-      return "Welcome to Paylite! What is your full name?";
+      await userRef.update({ onboardStep: 1 });
+      return (
+        "Welcome to Paylite.\n\n" +
+        "We collect and process your personal information in accordance with POPIA.\n\n" +
+        "Reply YES to consent and continue."
+      );
     }
 
-    // STEP 1 — Save name
     if (step === 1) {
+      if (text !== "yes") {
+        return "You must consent to POPIA to continue. Reply YES.";
+      }
       await userRef.update({
-        fullName: message.trim(),
-        onboardStep: 2,
-        updatedAt: new Date()
+        popiaConsent: true,
+        onboardStep: 2
       });
+      return "Please enter your full name:";
+    }
 
+    // STEP 2 — NAME
+    if (step === 2) {
+      await userRef.update({
+        fullName: message,
+        onboardStep: 3
+      });
       return "Please enter your South African ID number:";
     }
 
-    // STEP 2 — Save ID
-    if (step === 2) {
-      await userRef.update({
-        idNumber: message.trim(),
-        onboardStep: 3,
-        updatedAt: new Date()
-      });
-
-      return "What is your physical address?";
-    }
-
-    // STEP 3 — Save address
+    // STEP 3 — ID
     if (step === 3) {
       await userRef.update({
-        address: message.trim(),
-        onboardStep: 4,
-        updatedAt: new Date()
+        idNumber: message,
+        onboardStep: 4
       });
-
-      return "Please enter your electricity meter number:";
+      return "Please enter your physical address:";
     }
 
-    // STEP 4 — Save meter number
+    // STEP 4 — ADDRESS
     if (step === 4) {
       await userRef.update({
-        meterNumber: message.trim(),
-        onboardStep: 5,
-        updatedAt: new Date()
+        address: message,
+        onboardStep: 5
       });
-
-      return (
-        "POPIA Consent 📄\n\n" +
-        "Paylite will collect and process your personal data " +
-        "in line with South Africa’s POPIA.\n\n" +
-        "Reply YES to give consent."
-      );
+      return "Enter your electricity meter number:";
     }
 
-    // STEP 5 — POPIA CONSENT
+    // STEP 5 — METER
     if (step === 5) {
-      if (text !== "yes") {
-        return "You must reply YES to provide POPIA consent.";
-      }
-
       await userRef.update({
-        popiaConsent: true,
-        popiaConsentAt: new Date(),
-        onboardStep: 6,
-        updatedAt: new Date()
+        meterNumber: message,
+        onboardStep: 6
       });
-
       return (
-        "Terms & Conditions 📜\n\n" +
         "Please review our Terms & Conditions:\n" +
         "https://paylite.co.za/terms\n\n" +
         "Reply YES to accept."
       );
     }
 
-    // STEP 6 — TERMS & CONDITIONS
+    // STEP 6 — T&C
     if (step === 6) {
       if (text !== "yes") {
-        return "You must reply YES to accept the Terms & Conditions.";
+        return "You must accept the Terms & Conditions to continue. Reply YES.";
       }
 
       await userRef.update({
         termsAccepted: true,
-        termsAcceptedAt: new Date(),
-        termsVersion: "2025-01-13",
+        onboardStep: 7
+      });
 
+      return (
+        "Screening Step (Required)\n\n" +
+        "What is your current employer?\n\n" +
+        "⚠️ If unemployed or not receiving a pension, reply NONE."
+      );
+    }
+
+    // STEP 7 — EMPLOYER (SCREENING DECISION)
+    if (step === 7) {
+      const employer = message.trim();
+
+      if (employer.toLowerCase() === "none") {
+        await userRef.update({
+          screeningStatus: "rejected",
+          creditApproved: false,
+          blocked: true,
+          onboarded: true,
+          onboardStep: 99,
+          updatedAt: new Date()
+        });
+
+        return (
+          "Unfortunately, you do not qualify for Paylite at this time.\n\n" +
+          "Reason: No employment or pension income."
+        );
+      }
+
+      // Save screening record
+      await db.collection("screenings").add({
+        phone: from,
+        employer,
+        status: "pending",
+        createdAt: new Date()
+      });
+
+      await userRef.update({
+        screeningStatus: "pending",
         onboarded: true,
         onboardStep: 99,
         updatedAt: new Date()
       });
 
       return (
-        "Onboarding complete 🎉\n\n" +
-        "You can now request electricity on credit.\n\n" +
-        "Reply MENU to continue."
+        "Thank you.\n\n" +
+        "Your details have been submitted for screening.\n" +
+        "You will be notified once reviewed."
       );
     }
 
-    // =========================
-    // FALLBACK
-    // =========================
-    return "Reply MENU to continue.";
+    return "Please wait while your account is being reviewed.";
   }
 };
