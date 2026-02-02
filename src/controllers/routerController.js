@@ -100,7 +100,7 @@ async function routeMessage(from, message) {
     if (text !== "yes") {
       return (
         "Before proceeding, please review and accept:\n\n" +
-        "🔗 https://paylite.co.za/terms\n\n" +
+        "🔗 https://paylite-backend.onrender.com/terms/\n\n" +
         "Reply YES once completed."
       );
     }
