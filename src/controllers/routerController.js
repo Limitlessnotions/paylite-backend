@@ -1,4 +1,3 @@
-const { db } = require("../services/firebase");
 const { handleOnboarding } = require("./onboardingController");
 const {
   requestVoucherAmount,
@@ -6,14 +5,16 @@ const {
   acceptTerms
 } = require("./voucherController");
 
+const { db } = require("../services/firebase");
+
 async function routeMessage(from, message) {
   const text = message.trim().toLowerCase();
   const userRef = db.collection("users").doc(from);
   const snap = await userRef.get();
 
-  // =========================
-  // GLOBAL COMMANDS (ALWAYS)
-  // =========================
+  // =============================
+  // GLOBAL COMMANDS
+  // =============================
   if (text === "help" || text === "support") {
     return (
       "Paylite Support 🧑‍💼\n\n" +
@@ -32,36 +33,55 @@ async function routeMessage(from, message) {
     );
   }
 
-  // =========================
+  // =============================
   // USER NOT ONBOARDED
-  // =========================
+  // =============================
   if (!snap.exists || snap.data().onboarded !== true) {
     return await handleOnboarding(from, message);
   }
 
   const user = snap.data();
 
-  // =========================
+  // =============================
+  // 📄 LOAN AGREEMENT DELIVERY
+  // =============================
+  if (user.loanAgreement?.file) {
+    return (
+      "📄 Your Paylite Loan Agreement is ready.\n\n" +
+      "Download your copy here:\n" +
+      `https://paylite-backend.onrender.com/agreements/${user.loanAgreement.file}\n\n` +
+      "Keep this document for your records."
+    );
+  }
+
+  // =============================
   // SCREENING ENFORCEMENT (M3)
-  // =========================
+  // =============================
   if (user.screeningStatus === "pending") {
-    return "Your account is currently under screening. Please wait for approval.";
+    return "Your account is under screening. Please wait for approval.";
   }
 
   if (user.screeningStatus === "rejected") {
-    return "Unfortunately, your screening was not approved. You cannot use Paylite.";
+    return "Your screening was not approved. You cannot use Paylite.";
   }
 
   if (!user.creditApproved) {
     return "Your account is not approved for credit at this time.";
   }
 
-  // =========================
+  // =============================
+  // TERMS ACCEPTANCE FLOW (M4)
+  // =============================
+  if (text === "agree") {
+    return await acceptTerms(from);
+  }
+
+  // =============================
   // VOUCHER STATUS DELIVERY
-  // =========================
+  // =============================
   if (user.voucherStatus === "approved") {
     return (
-      "⚡ Your electricity voucher has been approved!\n\n" +
+      "⚡ Your electricity voucher has been approved.\n\n" +
       "Your token is being processed.\n\n" +
       "Reply MENU to continue."
     );
@@ -74,33 +94,24 @@ async function routeMessage(from, message) {
     );
   }
 
-  // =========================
-  // BLOCKED (ACTIVE LOAN)
-  // =========================
+  // =============================
+  // BLOCKED (UNPAID)
+  // =============================
   if (user.blocked) {
     return "You have an unpaid balance. Please repay before continuing.";
   }
 
-  // =========================
-  // ACCEPT TERMS (M4)
-  // =========================
-  if (text === "agree") {
-    return await acceptTerms(from);
-  }
-
-  // =========================
+  // =============================
   // BUY FLOW
-  // =========================
+  // =============================
   if (text === "buy" || text === "request") {
-    return "Enter the amount of electricity you want (R20 – R2000):";
+    return "Enter the amount you want (R20 – R2000):";
   }
 
-  // Pending repayment option
   if (user.pendingVoucher?.stage === "awaiting_repayment_option") {
     return await confirmRepaymentOption(from, message);
   }
 
-  // Amount entry
   if (/^\d+$/.test(text)) {
     return await requestVoucherAmount(from, message);
   }
