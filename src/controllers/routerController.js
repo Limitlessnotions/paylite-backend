@@ -1,10 +1,10 @@
+const { db } = require("../services/firebase");
 const { handleOnboarding } = require("./onboardingController");
 const {
   requestVoucherAmount,
-  confirmRepaymentOption
+  confirmRepaymentOption,
+  acceptTerms
 } = require("./voucherController");
-
-const { db } = require("../services/firebase");
 
 async function routeMessage(from, message) {
   const text = message.trim().toLowerCase();
@@ -12,7 +12,7 @@ async function routeMessage(from, message) {
   const snap = await userRef.get();
 
   // =========================
-  // GLOBAL COMMANDS (ALWAYS WORK)
+  // GLOBAL COMMANDS (ALWAYS)
   // =========================
   if (text === "help" || text === "support") {
     return (
@@ -33,7 +33,7 @@ async function routeMessage(from, message) {
   }
 
   // =========================
-  // NOT ONBOARDED → ONBOARD
+  // USER NOT ONBOARDED
   // =========================
   if (!snap.exists || snap.data().onboarded !== true) {
     return await handleOnboarding(from, message);
@@ -42,27 +42,18 @@ async function routeMessage(from, message) {
   const user = snap.data();
 
   // =========================
-  // SCREENING ENFORCEMENT (M3 CORE)
+  // SCREENING ENFORCEMENT (M3)
   // =========================
   if (user.screeningStatus === "pending") {
-    return (
-      "Your account is currently under screening.\n\n" +
-      "You will be notified once a decision has been made."
-    );
+    return "Your account is currently under screening. Please wait for approval.";
   }
 
   if (user.screeningStatus === "rejected") {
-    return (
-      "Your screening was not approved.\n\n" +
-      "Unfortunately, you cannot use Paylite at this time."
-    );
+    return "Unfortunately, your screening was not approved. You cannot use Paylite.";
   }
 
   if (!user.creditApproved) {
-    return (
-      "Your account is not approved for credit yet.\n\n" +
-      "Please wait for confirmation."
-    );
+    return "Your account is not approved for credit at this time.";
   }
 
   // =========================
@@ -71,7 +62,7 @@ async function routeMessage(from, message) {
   if (user.voucherStatus === "approved") {
     return (
       "⚡ Your electricity voucher has been approved!\n\n" +
-      "Your token is being prepared.\n\n" +
+      "Your token is being processed.\n\n" +
       "Reply MENU to continue."
     );
   }
@@ -84,71 +75,32 @@ async function routeMessage(from, message) {
   }
 
   // =========================
-  // BLOCKED (UNPAID)
+  // BLOCKED (ACTIVE LOAN)
   // =========================
   if (user.blocked) {
-    return (
-      "You have an outstanding balance.\n\n" +
-      "Please complete repayment before continuing."
-    );
+    return "You have an unpaid balance. Please repay before continuing.";
   }
 
   // =========================
-  // CONSENT ENFORCEMENT (ONLY AT BUY)
+  // ACCEPT TERMS (M4)
   // =========================
-  if (user.awaitingConsent) {
-    if (text !== "yes") {
-      return (
-        "Before proceeding, please review and accept:\n\n" +
-        "🔗 https://paylite-backend.onrender.com/terms/\n\n" +
-        "Reply YES once completed."
-      );
-    }
-
-    await userRef.update({
-      popiaConsent: true,
-      termsAccepted: true,
-      awaitingConsent: false,
-      updatedAt: new Date()
-    });
-
-    return (
-      "Thank you.\n\n" +
-      "Your agreement has been recorded.\n\n" +
-      "Reply BUY to continue."
-    );
+  if (text === "agree") {
+    return await acceptTerms(from);
   }
 
   // =========================
   // BUY FLOW
   // =========================
   if (text === "buy" || text === "request") {
-    if (!user.termsAccepted || !user.popiaConsent) {
-      await userRef.update({
-        awaitingConsent: true,
-        updatedAt: new Date()
-      });
-
-      return (
-        "Before requesting electricity, please review our Terms & Privacy Policy:\n\n" +
-        "🔗 https://paylite.co.za/terms\n\n" +
-        "Reply YES once completed."
-      );
-    }
-
-    return "Enter the amount you want (R20 – R2000):";
+    return "Enter the amount of electricity you want (R20 – R2000):";
   }
 
-  // =========================
-  // REPAYMENT OPTION
-  // =========================
-  if (user.pendingVoucher?.stage === "awaiting_confirmation") {
+  // Pending repayment option
+  if (user.pendingVoucher?.stage === "awaiting_repayment_option") {
     return await confirmRepaymentOption(from, message);
   }
 
-  // =========================
-  // AMOUNT ENTRY
-  // =========================
+  // Amount entry
   if (/^\d+$/.test(text)) {
     return await requestVoucherAmount(from, message);
   }
