@@ -3,53 +3,89 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-const screeningRoutes = require("./src/routes/screening.route");
+const webhookRoutes = require("./src/routes/webhook");
 const adminAuthRoutes = require("./src/routes/adminAuth.route");
 const adminApiRoutes = require("./src/routes/admin.route");
-const webhookRoutes = require("./src/routes/webhook");
+const screeningRoutes = require("./src/routes/screening.route");
 
 const app = express();
 
-// ===== Middleware =====
+// =============================
+// GLOBAL MIDDLEWARE
+// =============================
 app.use(cors());
 app.use(express.json());
 
-// ===== API Routes =====
+// =============================
+// API ROUTES
+// =============================
+
+// WhatsApp (ManyChat → Backend)
 app.use("/webhook", webhookRoutes);
+
+// Admin authentication
 app.use("/admin-auth", adminAuthRoutes);
+
+// Admin protected APIs
 app.use("/admin-api", adminApiRoutes);
+
+// Screening API (form submission)
 app.use("/screening-api", screeningRoutes);
 
-// ===== Admin Dashboard UI =====
+// =============================
+// STATIC FRONTENDS
+// =============================
+
+// Admin Dashboard UI
 app.use(
   "/dashboard",
   express.static(path.join(__dirname, "admin-ui"))
 );
 
-// ===== Public Screening UI =====
+// Public Screening Page
 app.use(
   "/screening",
   express.static(path.join(__dirname, "screening-ui"))
 );
 
-// ===== Terms & Conditions UI =====
+// Loan Agreements (PDF / HTML downloads)
 app.use(
-  "/terms",
-  express.static(path.join(__dirname, "terms-ui"))
+  "/agreements",
+  express.static(path.join(__dirname, "agreements"))
 );
 
-// ===== Root health check =====
+// Terms & Privacy (hosted pages)
+app.use(
+  "/legal",
+  express.static(path.join(__dirname, "legal"))
+);
+
+// =============================
+// HEALTH CHECK
+// =============================
 app.get("/", (req, res) => {
-  res.json({ success: true, message: "Paylite backend running" });
+  res.json({
+    success: true,
+    service: "Paylite Backend",
+    status: "running"
+  });
 });
 
-// ===== 404 =====
+// =============================
+// 404 HANDLER
+// =============================
 app.use((req, res) => {
-  res.status(404).json({ success: false, error: "Route not found" });
+  res.status(404).json({
+    success: false,
+    error: "Route not found"
+  });
 });
 
-// ===== Start =====
+// =============================
+// START SERVER
+// =============================
 const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, () => {
-  console.log(`Paylite server running on port ${PORT}`);
+  console.log(`✅ Paylite server running on port ${PORT}`);
 });
