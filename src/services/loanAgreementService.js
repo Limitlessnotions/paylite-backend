@@ -1,22 +1,32 @@
-const fs = require("fs");
-const path = require("path");
-const pdf = require("html-pdf");
+const { db } = require("./firebase");
+const { v4: uuidv4 } = require("uuid");
 
-exports.generateLoanAgreement = async (data) => {
-  const templatePath = path.join(__dirname, "../../terms-ui/loan-template.html");
-  let html = fs.readFileSync(templatePath, "utf8");
+/**
+ * Generates a loan agreement record (NO PDF in M4)
+ * PDF generation is deferred to M5
+ */
+async function generateLoanAgreement({ phone, amount, repaymentOption }) {
+  const agreementId = uuidv4();
 
-  Object.keys(data).forEach(key => {
-    html = html.replace(new RegExp(`{{${key}}}`, "g"), data[key]);
-  });
+  const agreement = {
+    id: agreementId,
+    phone,
+    amount,
+    repaymentOption,
+    status: "active",
+    createdAt: new Date(),
+    version: "v1.0",
+    type: "electricity_voucher_loan"
+  };
 
-  const fileName = `loan_${data.phone}_${Date.now()}.pdf`;
-  const outputPath = path.join(__dirname, "../../agreements", fileName);
+  await db.collection("loanAgreements").doc(agreementId).set(agreement);
 
-  return new Promise((resolve, reject) => {
-    pdf.create(html).toFile(outputPath, (err) => {
-      if (err) return reject(err);
-      resolve({ fileName, outputPath });
-    });
-  });
+  return {
+    id: agreementId,
+    url: `https://paylite-backend.onrender.com/agreement/${agreementId}`
+  };
+}
+
+module.exports = {
+  generateLoanAgreement
 };
