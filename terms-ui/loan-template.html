@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Paylite Loan Agreement</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      line-height: 1.6;
+    }
+    h1 { text-align: center; }
+    .section { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+<h1>Paylite Electricity Voucher Agreement</h1>
+
+<div class="section">
+  <strong>Customer Name:</strong> {{fullName}}<br/>
+  <strong>ID Number:</strong> {{idNumber}}<br/>
+  <strong>Phone:</strong> {{phone}}
+</div>
+
+<div class="section">
+  <strong>Voucher Amount:</strong> R{{amount}}<br/>
+  <strong>Repayment Option:</strong> {{option}}<br/>
+  <strong>Repayment Due:</strong> {{dueDate}}
+</div>
+
+<div class="section">
+  This agreement confirms that Paylite has advanced an electricity voucher
+  to the customer under agreed repayment terms.
+</div>
+
+<div class="section">
+  The customer agrees to repay the amount in full according to the selected option.
+</div>
+
+<div class="section">
+  <strong>Accepted via WhatsApp on:</strong> {{acceptedAt}}
+</div>
+
+</body>
+</html>
