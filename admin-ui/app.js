@@ -1,4 +1,4 @@
-+qconst API_BASE = "/admin-api";
+const API_BASE = "/admin-api";
 const TOKEN_KEY = "paylite_admin_token";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -99,4 +99,82 @@ async function approveVoucher(phone) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
     },
-    body: JSON.stringify({
+    body: JSON.stringify({ phone })
+  });
+
+  loadPendingVouchers();
+}
+
+async function rejectVoucher(phone) {
+  await fetch(`${API_BASE}/reject-voucher`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+    },
+    body: JSON.stringify({ phone })
+  });
+
+  loadPendingVouchers();
+}
+
+/* ================= SCREENINGS ================= */
+
+async function loadScreenings() {
+  const el = document.getElementById("screeningList");
+  el.innerHTML = "<p>Loading...</p>";
+
+  const res = await fetch(`${API_BASE}/screenings`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+    }
+  });
+
+  const json = await res.json();
+  el.innerHTML = "";
+
+  if (!json.success || !json.data || !json.data.length) {
+    el.innerHTML = "<p>No screening records found</p>";
+    return;
+  }
+
+  json.data.forEach(s => {
+    el.innerHTML += `
+      <div class="card">
+        <p><strong>${s.fullName || "Unknown"}</strong></p>
+        <p>Phone: ${s.phone}</p>
+        <p>Status: ${s.status}</p>
+
+        ${
+          s.status === "pending"
+            ? `
+              <button onclick="approveScreening('${s.phone}')">Approve</button>
+              <button class="danger" onclick="rejectScreening('${s.phone}')">Reject</button>
+            `
+            : ""
+        }
+      </div>
+    `;
+  });
+}
+
+async function approveScreening(phone) {
+  await screeningAction(phone, "approved");
+}
+
+async function rejectScreening(phone) {
+  await screeningAction(phone, "rejected");
+}
+
+async function screeningAction(phone, decision) {
+  await fetch(`${API_BASE}/screening-decision`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+    },
+    body: JSON.stringify({ phone, decision })
+  });
+
+  loadScreenings();
+}
