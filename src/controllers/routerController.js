@@ -55,7 +55,7 @@ async function routeMessage(from, message) {
   }
 
   // =============================
-  // SCREENING ENFORCEMENT (M3)
+  // SCREENING ENFORCEMENT
   // =============================
   if (user.screeningStatus === "pending") {
     return "Your account is under screening. Please wait for approval.";
@@ -70,7 +70,7 @@ async function routeMessage(from, message) {
   }
 
   // =============================
-  // TERMS ACCEPTANCE FLOW (M4)
+  // TERMS ACCEPTANCE
   // =============================
   if (text === "agree") {
     return await acceptTerms(from);
@@ -102,20 +102,34 @@ async function routeMessage(from, message) {
   }
 
   // =============================
-  // BUY FLOW
+  // BUY FLOW (FIXED PROPERLY)
   // =============================
+
+  // Step 1 — Start flow
   if (text === "buy" || text === "request") {
+    await userRef.set({
+      pendingVoucher: {
+        stage: "awaiting_amount"
+      }
+    }, { merge: true });
+
     return "Enter the amount you want (R20 – R2000):";
   }
 
+  // Step 2 — Handle amount FIRST (state-based)
+  if (user.pendingVoucher?.stage === "awaiting_amount") {
+    const cleanAmount = text.replace(/[^0-9]/g, "");
+    return await requestVoucherAmount(from, cleanAmount);
+  }
+
+  // Step 3 — Handle repayment option
   if (user.pendingVoucher?.stage === "awaiting_repayment_option") {
     return await confirmRepaymentOption(from, message);
   }
 
-  if (/^\d+$/.test(text)) {
-    return await requestVoucherAmount(from, message);
-  }
-
+  // =============================
+  // FALLBACK
+  // =============================
   return "Reply MENU to continue.";
 }
 
