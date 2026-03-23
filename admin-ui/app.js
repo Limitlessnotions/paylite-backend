@@ -82,7 +82,7 @@ async function loadPendingVouchers() {
           <p><strong>${u.phone}</strong></p>
           <p>Amount: R${u.voucherAmount}</p>
           <button onclick="approveVoucher('${u.phone}')">Approve</button>
-          <button onclick="rejectVoucher('${u.phone}')">Reject</button>
+          <button class="danger" onclick="rejectVoucher('${u.phone}')">Reject</button>
         </div>
       `;
     });
@@ -148,8 +148,8 @@ async function loadScreenings() {
         ${
           s.status === "pending"
             ? `
-              <button onclick="approveScreening('${s.phone}')">Approve</button>
-              <button class="danger" onclick="rejectScreening('${s.phone}')">Reject</button>
+              <button onclick="approveScreening('${s.id}')">Approve</button>
+              <button class="danger" onclick="rejectScreening('${s.id}')">Reject</button>
             `
             : ""
         }
@@ -158,22 +158,25 @@ async function loadScreenings() {
   });
 }
 
-async function approveScreening(phone) {
-  await screeningAction(phone, "approved");
+async function approveScreening(screeningId) {
+  await screeningAction(screeningId, "approved");
 }
 
-async function rejectScreening(phone) {
-  await screeningAction(phone, "rejected");
+async function rejectScreening(screeningId) {
+  await screeningAction(screeningId, "rejected");
 }
 
-async function screeningAction(phone, decision) {
+async function screeningAction(screeningId, decision) {
   await fetch(`${API_BASE}/screening-decision`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
     },
-    body: JSON.stringify({ phone, decision })
+    body: JSON.stringify({
+      screeningId,
+      decision
+    })
   });
 
   loadScreenings();
